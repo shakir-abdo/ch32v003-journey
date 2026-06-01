@@ -112,8 +112,32 @@ const resumeColor = computed(() =>
           :style="{background: `radial-gradient(circle at 20% 50%, ${resumeColor}22 0%, transparent 70%)`}"
         />
 
+        <!-- Top row: chip at start of reading direction, age next, ✕ at end -->
+        <div class="relative flex items-center gap-2 flex-wrap">
+          <span
+            class="font-mono text-[10px] uppercase tracking-wider px-2 py-1 rounded-[2px] border inline-flex items-center gap-1.5"
+            :style="{color: resumeColor, borderColor: resumeColor + '55', background: resumeColor + '0E'}"
+          >
+            <span class="size-1.5 rounded-full animate-pulse" :style="{background: resumeColor}" />
+            {{ t('app.resume.headline') }}
+          </span>
+          <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--cy-fg-muted)]" dir="ltr">
+            {{ resumeAge }}
+          </span>
+          <button
+            type="button"
+            class="ms-auto size-6 grid place-items-center text-[var(--cy-fg-muted)] hover:text-[var(--cy-destructive)] transition-colors rounded-[2px] hover:bg-[var(--cy-destructive)]/10"
+            :title="t('app.resume.dismiss')"
+            :aria-label="t('app.resume.dismiss')"
+            @click.stop.prevent="clearProgress()"
+          >
+            <UIcon name="i-lucide-x" class="size-3.5" />
+          </button>
+        </div>
+
+        <!-- Main row: icon + title + CTA -->
         <div class="relative flex items-center gap-4">
-          <!-- Icon -->
+          <!-- Icon — always sits on the start-side (right in RTL, left in LTR) -->
           <div
             class="shrink-0 size-14 grid place-items-center border rounded-[4px]"
             :style="{
@@ -124,58 +148,43 @@ const resumeColor = computed(() =>
             <UIcon :name="resumeLesson.icon || 'i-lucide-book-open'" class="size-7" :style="{color: resumeColor}" />
           </div>
 
-          <!-- Body -->
+          <!-- Title block -->
           <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 flex-wrap mb-1" dir="ltr">
-              <span
-                class="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-[2px] border"
-                :style="{color: resumeColor, borderColor: resumeColor + '55', background: resumeColor + '0E'}"
-              >
-                {{ t('app.resume.headline') }}
+            <div class="flex items-baseline gap-2" :dir="isRtl ? 'rtl' : 'ltr'">
+              <span class="font-mono text-xs font-bold tabular-nums" :style="{color: resumeColor}" dir="ltr">
+                L{{ String(resumeLesson.order).padStart(2, '0') }}
               </span>
-              <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--cy-fg-muted)]">
-                · {{ resumeAge }}
+              <span class="font-display text-base sm:text-lg font-semibold text-[var(--cy-fg)] group-hover:text-[var(--cy-primary)] transition-colors truncate">
+                {{ (resumeLesson as any)[titleField] }}
               </span>
             </div>
-            <div class="font-display text-base sm:text-lg font-semibold text-[var(--cy-fg)] group-hover:text-[var(--cy-primary)] transition-colors truncate" :dir="isRtl ? 'rtl' : 'ltr'">
-              L{{ String(resumeLesson.order).padStart(2, '0') }} · {{ (resumeLesson as any)[titleField] }}
-            </div>
-            <div class="font-mono text-[11px] text-[var(--cy-fg-muted)] mt-0.5" dir="ltr">
-              {{ Math.round(progress.scrollPercent) }}% {{ t('app.resume.progress') }}
+            <!-- Progress bar — sits under the title -->
+            <div class="mt-2 flex items-center gap-3" dir="ltr">
+              <div class="flex-1 h-1 bg-[var(--cy-muted)] rounded-[1px] overflow-hidden">
+                <div
+                  class="h-full transition-all"
+                  :style="{
+                    width: `${progress.scrollPercent}%`,
+                    background: resumeColor,
+                    boxShadow: `0 0 6px ${resumeColor}`
+                  }"
+                />
+              </div>
+              <span class="font-mono text-[10px] tabular-nums text-[var(--cy-fg-muted)] shrink-0">
+                {{ Math.round(progress.scrollPercent) }}%
+              </span>
             </div>
           </div>
 
           <!-- CTA -->
-          <div class="hidden sm:flex flex-col items-end gap-2 shrink-0" dir="ltr">
-            <span
-              class="cy-btn"
-              :style="{color: resumeColor, borderColor: resumeColor + '66'}"
-            >
-              {{ t('app.resume.cta') }}
-              <UIcon :name="isRtl ? 'i-lucide-arrow-left' : 'i-lucide-arrow-right'" class="size-3.5" />
-            </span>
-            <button
-              type="button"
-              class="font-mono text-[10px] uppercase tracking-wider text-[var(--cy-fg-muted)] hover:text-[var(--cy-destructive)] transition-colors"
-              :title="t('app.resume.dismiss')"
-              @click.stop.prevent="clearProgress()"
-            >
-              ✕ {{ t('app.resume.dismiss') }}
-            </button>
-          </div>
-        </div>
-
-        <!-- Progress bar -->
-        <div class="relative h-1 bg-[var(--cy-muted)] rounded-[1px] overflow-hidden">
-          <div
-            class="absolute inset-y-0 transition-all"
-            :style="{
-              [isRtl ? 'right' : 'left']: '0',
-              width: `${progress.scrollPercent}%`,
-              background: resumeColor,
-              boxShadow: `0 0 8px ${resumeColor}`
-            }"
-          />
+          <span
+            class="hidden sm:inline-flex cy-btn shrink-0"
+            :style="{color: resumeColor, borderColor: resumeColor + '66'}"
+            dir="ltr"
+          >
+            <UIcon :name="isRtl ? 'i-lucide-arrow-left' : 'i-lucide-arrow-right'" class="size-3.5" />
+            {{ t('app.resume.cta') }}
+          </span>
         </div>
       </NuxtLink>
     </ClientOnly>
