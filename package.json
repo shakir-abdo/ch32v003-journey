@@ -1,9 +1,10 @@
 {
   "name": "ch32v003-journey",
   "version": "0.1.0",
-  "description": "ch32v003-journey — built from my-nuxt4-template",
+  "description": "ch32v003-journey — Arabic bare-metal CH32V003 curriculum",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.18.2",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev --host",
@@ -11,6 +12,15 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "typecheck": "nuxt typecheck"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@parcel/watcher",
+      "better-sqlite3",
+      "esbuild",
+      "sharp",
+      "vue-demi"
+    ]
   },
   "dependencies": {
     "@nuxt/content": "^3.14.0",
