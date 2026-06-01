@@ -143,21 +143,11 @@ Row2 ────●──────●──────●──── LED 6
 نمط[2] = 1 0 1
 ```
 
+> 💡 تعريفات `GPIOC_*` و `GPIOD_*` و `RCC_APB2PCENR` موجودة في بلوك **📋 تعريفات السجلات** أعلى الصفحة.
+
 ```c
 // PC0..PC2 = صفوف (3 أطراف)
 // PD0..PD2 = أعمدة (3 أطراف)
-
-typedef unsigned int u32;
-
-#define GPIOC_BASE  0x40011000
-#define GPIOC_CFGLR (*(volatile u32*)(GPIOC_BASE + 0x00))
-#define GPIOC_BSHR  (*(volatile u32*)(GPIOC_BASE + 0x10))
-#define GPIOC_BCR   (*(volatile u32*)(GPIOC_BASE + 0x14))
-
-#define GPIOD_BASE  0x40011400
-#define GPIOD_CFGLR (*(volatile u32*)(GPIOD_BASE + 0x00))
-#define GPIOD_BSHR  (*(volatile u32*)(GPIOD_BASE + 0x10))
-#define GPIOD_BCR   (*(volatile u32*)(GPIOD_BASE + 0x14))
 
 // نمط الإطار: كل صف = 3 بِتات (أعلى 5 بِتات مُهمَلة)
 const uint8_t frame[3] = {

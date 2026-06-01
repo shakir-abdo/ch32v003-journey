@@ -233,25 +233,10 @@ GPIOC_BCR  = (1u << 1);          // عبر BCR (أنظف وأشيع)
 
 ## الكود الكامل — Blinky على مستوى السجلات النقي
 
+> 💡 ابدأ بنسخ بلوك التعريفات من قسم **📋 تعريفات السجلات لهذا الدرس** في أعلى الصفحة إلى رأس `main.c`. ثم انسخ هذا الجزء تحته. بهذا يصير لديك ملف واحد كامل بلا أي `#include` خارجي.
+
 ```c
-typedef unsigned int u32;
-
-// ── RCC ─────────────────────────────────────────────────
-#define RCC_BASE       0x40021000
-#define RCC_APB2PCENR  (*(volatile u32*)(RCC_BASE + 0x18))
-#define RCC_IOPCEN     (1u << 4)        // ساعة GPIOC
-
-// ── GPIOC ───────────────────────────────────────────────
-#define GPIOC_BASE     0x40011000
-#define GPIOC_CFGLR    (*(volatile u32*)(GPIOC_BASE + 0x00))
-#define GPIOC_BSHR     (*(volatile u32*)(GPIOC_BASE + 0x10))
-#define GPIOC_BCR      (*(volatile u32*)(GPIOC_BASE + 0x14))
-
-// تأخير بسيط (busy loop). الـ HSI = 24 MHz افتراضياً بعد الـ Reset،
-// و~800,000 دورة ≈ نصف ثانية تقريباً (غير دقيق لكن كافٍ لـ Blinky).
-static void delay(volatile u32 cycles) {
-    while (cycles--) { __asm__ volatile ("nop"); }
-}
+#define RCC_IOPCEN  (1u << 4)              // بت تفعيل ساعة GPIOC
 
 void main(void) {
     // 1) ساعة GPIOC (HSI = 24 MHz افتراضياً، لا حاجة لإعداده)
