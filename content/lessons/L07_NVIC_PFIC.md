@@ -18,6 +18,43 @@ tags: ["interrupts", "pfic"]
 
 ---
 
+## 📋 تعريفات السجلات لهذا الدرس
+
+انسخ هذا البلوك إلى رأس `main.c` قبل تشغيل أيّ مثال من هذا الدرس. الأمثلة في الأسفل تفترض أنّ هذه التعريفات موجودة.
+
+```c
+typedef unsigned int u32;
+
+// ── GPIOC ──────────────────────────────────────────────
+#define GPIOC_BASE    0x40011000
+#define GPIOC_OUTDR     (*(volatile u32*)(GPIOC_BASE + 0x0C))
+
+// ── EXTI ──────────────────────────────────────────────
+#define EXTI_BASE    0x40010400
+#define EXTI_INTFR      (*(volatile u32*)(EXTI_BASE + 0x14))
+
+// ── PFIC ──────────────────────────────────────────────
+#define PFIC_BASE    0xE000E000
+#define PFIC_IENR1      (*(volatile u32*)(PFIC_BASE + 0x100))
+
+// ── SysTick ──────────────────────────────────────────────
+#define SysTick_BASE    0xE000F000
+#define STK_CTLR        (*(volatile u32*)(SysTick_BASE + 0x00))
+#define STK_SR          (*(volatile u32*)(SysTick_BASE + 0x04))
+#define STK_CNT         (*(volatile u32*)(SysTick_BASE + 0x08))
+#define STK_CMP         (*(volatile u32*)(SysTick_BASE + 0x10))
+
+// تأخير busy-loop بسيط (يكفي للأمثلة الأساسية)
+static void delay(volatile u32 cycles) {
+    while (cycles--) { __asm__ volatile ("nop"); }
+}
+```
+
+> 💡 جميع العناوين مستخرجة من *CH32V003 RM v1.9*، الفصل الخاصّ بكل peripheral. الجدول مرتّب بترتيب الاستخدام في الدرس.
+
+---
+
+
 ## 0. لماذا هذا الدرس أساسي؟
 
 كلّما تعلّمناه حتى الآن كان **متتابعاً (Sequential)**: سطرٌ يتبع سطراً. لكن الحياة العتادية ليست كذلك:

@@ -20,6 +20,43 @@ tags: ["tim1", "pwm"]
 
 ---
 
+## 📋 تعريفات السجلات لهذا الدرس
+
+انسخ هذا البلوك إلى رأس `main.c` قبل تشغيل أيّ مثال من هذا الدرس. الأمثلة في الأسفل تفترض أنّ هذه التعريفات موجودة.
+
+```c
+typedef unsigned int u32;
+
+// ── RCC ──────────────────────────────────────────────
+#define RCC_BASE    0x40021000
+#define RCC_APB2PCENR   (*(volatile u32*)(RCC_BASE + 0x18))
+
+// ── GPIOC ──────────────────────────────────────────────
+#define GPIOC_BASE    0x40011000
+#define GPIOC_CFGLR     (*(volatile u32*)(GPIOC_BASE + 0x00))
+
+// ── TIM1 ──────────────────────────────────────────────
+#define TIM1_BASE    0x40012C00
+#define TIM1_CHCTLR2    (*(volatile u32*)(TIM1_BASE + 0x1C))
+#define TIM1_CTLR1      (*(volatile u32*)(TIM1_BASE + 0x00))
+#define TIM1_CCER       (*(volatile u32*)(TIM1_BASE + 0x20))
+#define TIM1_PSC        (*(volatile u32*)(TIM1_BASE + 0x28))
+#define TIM1_ATRLR      (*(volatile u32*)(TIM1_BASE + 0x2C))
+#define TIM1_CH4CVR     (*(volatile u32*)(TIM1_BASE + 0x40))
+#define TIM1_BDTR       (*(volatile u32*)(TIM1_BASE + 0x44))
+#define TIM1_INTFR      (*(volatile u32*)(TIM1_BASE + 0x10))
+
+// تأخير busy-loop بسيط (يكفي للأمثلة الأساسية)
+static void delay(volatile u32 cycles) {
+    while (cycles--) { __asm__ volatile ("nop"); }
+}
+```
+
+> 💡 جميع العناوين مستخرجة من *CH32V003 RM v1.9*، الفصل الخاصّ بكل peripheral. الجدول مرتّب بترتيب الاستخدام في الدرس.
+
+---
+
+
 ## 0. ما هو المؤقّت أصلاً؟
 
 تخيّل **عدّاد رقمي** يدور تلقائياً بسرعة ساعة معيّنة. عندما يبلغ قيمة محدّدة (`ARR` = Auto-Reload Register)، إما يُطفئ/يشغّل دبوس، أو يطلق مقاطعة، أو يبدأ من جديد.

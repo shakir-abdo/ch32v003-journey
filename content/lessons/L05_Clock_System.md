@@ -17,6 +17,34 @@ tags: ["rcc", "clock", "pll"]
 
 ---
 
+## 📋 تعريفات السجلات لهذا الدرس
+
+انسخ هذا البلوك إلى رأس `main.c` قبل تشغيل أيّ مثال من هذا الدرس. الأمثلة في الأسفل تفترض أنّ هذه التعريفات موجودة.
+
+```c
+typedef unsigned int u32;
+
+// ── RCC ──────────────────────────────────────────────
+#define RCC_BASE    0x40021000
+#define RCC_CTLR        (*(volatile u32*)(RCC_BASE + 0x00))
+#define RCC_CFGR0       (*(volatile u32*)(RCC_BASE + 0x04))
+#define RCC_APB2PCENR   (*(volatile u32*)(RCC_BASE + 0x18))
+
+// ── FLASH ──────────────────────────────────────────────
+#define FLASH_BASE    0x40022000
+#define FLASH_ACTLR     (*(volatile u32*)(FLASH_BASE + 0x00))
+
+// تأخير busy-loop بسيط (يكفي للأمثلة الأساسية)
+static void delay(volatile u32 cycles) {
+    while (cycles--) { __asm__ volatile ("nop"); }
+}
+```
+
+> 💡 جميع العناوين مستخرجة من *CH32V003 RM v1.9*، الفصل الخاصّ بكل peripheral. الجدول مرتّب بترتيب الاستخدام في الدرس.
+
+---
+
+
 ## مقدمة
 
 نظام الساعة هو القلب النابض لأي متحكم دقيق. هو الذي يحدّد سرعة تنفيذ الأوامر، ويؤثر مباشرة على الأداء واستهلاك الطاقة. في الـ `CH32V003` فهم هذا النظام يعني فهم ثلاث طبقات:

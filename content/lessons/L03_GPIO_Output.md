@@ -17,6 +17,35 @@ tags: ["gpio", "blinky"]
 
 ---
 
+## 📋 تعريفات السجلات لهذا الدرس
+
+انسخ هذا البلوك إلى رأس `main.c` قبل تشغيل أيّ مثال من هذا الدرس. الأمثلة في الأسفل تفترض أنّ هذه التعريفات موجودة.
+
+```c
+typedef unsigned int u32;
+
+// ── RCC ──────────────────────────────────────────────
+#define RCC_BASE    0x40021000
+#define RCC_APB2PCENR   (*(volatile u32*)(RCC_BASE + 0x18))
+
+// ── GPIOC ──────────────────────────────────────────────
+#define GPIOC_BASE    0x40011000
+#define GPIOC_CFGLR     (*(volatile u32*)(GPIOC_BASE + 0x00))
+#define GPIOC_OUTDR     (*(volatile u32*)(GPIOC_BASE + 0x0C))
+#define GPIOC_BSHR      (*(volatile u32*)(GPIOC_BASE + 0x10))
+#define GPIOC_BCR       (*(volatile u32*)(GPIOC_BASE + 0x14))
+
+// تأخير busy-loop بسيط (يكفي للأمثلة الأساسية)
+static void delay(volatile u32 cycles) {
+    while (cycles--) { __asm__ volatile ("nop"); }
+}
+```
+
+> 💡 جميع العناوين مستخرجة من *CH32V003 RM v1.9*، الفصل الخاصّ بكل peripheral. الجدول مرتّب بترتيب الاستخدام في الدرس.
+
+---
+
+
 ## مقدمة
 
 يُغطّي هذا الدرسُ الخطوات الأساسية لتهيئة طرف إدخال/إخراج عام (GPIO) كـ **مخرج (Output)**. المشروع التطبيقي هو التحكم في الـ LED المدمج على الشريحة — مشروع "Blinky" الشهير.

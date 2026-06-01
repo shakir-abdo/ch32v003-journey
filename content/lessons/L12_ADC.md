@@ -18,6 +18,48 @@ tags: ["adc", "analog"]
 
 ---
 
+## 📋 تعريفات السجلات لهذا الدرس
+
+انسخ هذا البلوك إلى رأس `main.c` قبل تشغيل أيّ مثال من هذا الدرس. الأمثلة في الأسفل تفترض أنّ هذه التعريفات موجودة.
+
+```c
+typedef unsigned int u32;
+
+// ── RCC ──────────────────────────────────────────────
+#define RCC_BASE    0x40021000
+#define RCC_APB2PCENR   (*(volatile u32*)(RCC_BASE + 0x18))
+
+// ── GPIOC ──────────────────────────────────────────────
+#define GPIOC_BASE    0x40011000
+#define GPIOC_CFGLR     (*(volatile u32*)(GPIOC_BASE + 0x00))
+
+// ── ADC1 ──────────────────────────────────────────────
+#define ADC1_BASE    0x40012400
+#define ADC1_CTLR2      (*(volatile u32*)(ADC1_BASE + 0x08))
+#define ADC1_SAMPTR2    (*(volatile u32*)(ADC1_BASE + 0x10))
+#define ADC1_RSQR1      (*(volatile u32*)(ADC1_BASE + 0x2C))
+#define ADC1_RSQR3      (*(volatile u32*)(ADC1_BASE + 0x34))
+#define ADC1_STATR      (*(volatile u32*)(ADC1_BASE + 0x00))
+#define ADC1_RDATAR     (*(volatile u32*)(ADC1_BASE + 0x4C))
+#define ADC1_CTLR1      (*(volatile u32*)(ADC1_BASE + 0x04))
+#define ADC1_WDHTR      (*(volatile u32*)(ADC1_BASE + 0x24))
+#define ADC1_WDLTR      (*(volatile u32*)(ADC1_BASE + 0x28))
+
+// ── PFIC ──────────────────────────────────────────────
+#define PFIC_BASE    0xE000E000
+#define PFIC_IENR1      (*(volatile u32*)(PFIC_BASE + 0x100))
+
+// تأخير busy-loop بسيط (يكفي للأمثلة الأساسية)
+static void delay(volatile u32 cycles) {
+    while (cycles--) { __asm__ volatile ("nop"); }
+}
+```
+
+> 💡 جميع العناوين مستخرجة من *CH32V003 RM v1.9*، الفصل الخاصّ بكل peripheral. الجدول مرتّب بترتيب الاستخدام في الدرس.
+
+---
+
+
 ## 0. ما هو الـ ADC؟
 
 **ADC = Analog-to-Digital Converter** — يحوّل جهداً تماثلياً (مثل 1.7V) إلى رقم رقمي يمكن للـ CPU استخدامه.

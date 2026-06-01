@@ -18,6 +18,49 @@ tags: ["uart", "serial"]
 
 ---
 
+## 📋 تعريفات السجلات لهذا الدرس
+
+انسخ هذا البلوك إلى رأس `main.c` قبل تشغيل أيّ مثال من هذا الدرس. الأمثلة في الأسفل تفترض أنّ هذه التعريفات موجودة.
+
+```c
+typedef unsigned int u32;
+
+// ── RCC ──────────────────────────────────────────────
+#define RCC_BASE    0x40021000
+#define RCC_APB2PCENR   (*(volatile u32*)(RCC_BASE + 0x18))
+
+// ── GPIOC ──────────────────────────────────────────────
+#define GPIOC_BASE    0x40011000
+#define GPIOC_BSHR      (*(volatile u32*)(GPIOC_BASE + 0x10))
+#define GPIOC_BCR       (*(volatile u32*)(GPIOC_BASE + 0x14))
+
+// ── GPIOD ──────────────────────────────────────────────
+#define GPIOD_BASE    0x40011400
+#define GPIOD_CFGLR     (*(volatile u32*)(GPIOD_BASE + 0x00))
+#define GPIOD_OUTDR     (*(volatile u32*)(GPIOD_BASE + 0x0C))
+
+// ── USART1 ──────────────────────────────────────────────
+#define USART1_BASE    0x40013800
+#define USART1_STATR    (*(volatile u32*)(USART1_BASE + 0x00))
+#define USART1_DATAR    (*(volatile u32*)(USART1_BASE + 0x04))
+#define USART1_BRR      (*(volatile u32*)(USART1_BASE + 0x08))
+#define USART1_CTLR1    (*(volatile u32*)(USART1_BASE + 0x0C))
+
+// ── PFIC ──────────────────────────────────────────────
+#define PFIC_BASE    0xE000E000
+#define PFIC_IENR1      (*(volatile u32*)(PFIC_BASE + 0x100))
+
+// تأخير busy-loop بسيط (يكفي للأمثلة الأساسية)
+static void delay(volatile u32 cycles) {
+    while (cycles--) { __asm__ volatile ("nop"); }
+}
+```
+
+> 💡 جميع العناوين مستخرجة من *CH32V003 RM v1.9*، الفصل الخاصّ بكل peripheral. الجدول مرتّب بترتيب الاستخدام في الدرس.
+
+---
+
+
 ## 0. ما هو UART؟
 
 **UART = Universal Asynchronous Receiver/Transmitter**.

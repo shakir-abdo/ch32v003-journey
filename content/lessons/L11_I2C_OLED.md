@@ -18,6 +18,42 @@ tags: ["i2c", "oled"]
 
 ---
 
+## 📋 تعريفات السجلات لهذا الدرس
+
+انسخ هذا البلوك إلى رأس `main.c` قبل تشغيل أيّ مثال من هذا الدرس. الأمثلة في الأسفل تفترض أنّ هذه التعريفات موجودة.
+
+```c
+typedef unsigned int u32;
+
+// ── RCC ──────────────────────────────────────────────
+#define RCC_BASE    0x40021000
+#define RCC_APB2PCENR   (*(volatile u32*)(RCC_BASE + 0x18))
+#define RCC_APB1PCENR   (*(volatile u32*)(RCC_BASE + 0x1C))
+
+// ── GPIOC ──────────────────────────────────────────────
+#define GPIOC_BASE    0x40011000
+#define GPIOC_CFGLR     (*(volatile u32*)(GPIOC_BASE + 0x00))
+
+// ── I2C1 ──────────────────────────────────────────────
+#define I2C1_BASE    0x40005400
+#define I2C1_CTLR1      (*(volatile u32*)(I2C1_BASE + 0x00))
+#define I2C1_CTLR2      (*(volatile u32*)(I2C1_BASE + 0x04))
+#define I2C1_CKCFGR     (*(volatile u32*)(I2C1_BASE + 0x1C))
+#define I2C1_DATAR      (*(volatile u32*)(I2C1_BASE + 0x10))
+#define I2C1_STAR1      (*(volatile u32*)(I2C1_BASE + 0x14))
+#define I2C1_STAR2      (*(volatile u32*)(I2C1_BASE + 0x18))
+
+// تأخير busy-loop بسيط (يكفي للأمثلة الأساسية)
+static void delay(volatile u32 cycles) {
+    while (cycles--) { __asm__ volatile ("nop"); }
+}
+```
+
+> 💡 جميع العناوين مستخرجة من *CH32V003 RM v1.9*، الفصل الخاصّ بكل peripheral. الجدول مرتّب بترتيب الاستخدام في الدرس.
+
+---
+
+
 ## 0. ما هو I2C؟
 
 **I2C = Inter-Integrated Circuit** — بروتوكول سلكين فقط (SDA + SCL) يدعم **عدة slaves** على نفس الـ bus. كل slave له **عنوان 7-bit** فريد.

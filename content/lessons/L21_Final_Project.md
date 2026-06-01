@@ -21,6 +21,60 @@ tags: ["project"]
 
 ---
 
+## 📋 تعريفات السجلات لهذا الدرس
+
+انسخ هذا البلوك إلى رأس `main.c` قبل تشغيل أيّ مثال من هذا الدرس. الأمثلة في الأسفل تفترض أنّ هذه التعريفات موجودة.
+
+```c
+typedef unsigned int u32;
+
+// ── RCC ──────────────────────────────────────────────
+#define RCC_BASE    0x40021000
+#define RCC_APB2PCENR   (*(volatile u32*)(RCC_BASE + 0x18))
+
+// ── GPIOC ──────────────────────────────────────────────
+#define GPIOC_BASE    0x40011000
+#define GPIOC_BSHR      (*(volatile u32*)(GPIOC_BASE + 0x10))
+#define GPIOC_BCR       (*(volatile u32*)(GPIOC_BASE + 0x14))
+
+// ── GPIOD ──────────────────────────────────────────────
+#define GPIOD_BASE    0x40011400
+#define GPIOD_OUTDR     (*(volatile u32*)(GPIOD_BASE + 0x0C))
+
+// ── EXTI ──────────────────────────────────────────────
+#define EXTI_BASE    0x40010400
+#define EXTI_INTFR      (*(volatile u32*)(EXTI_BASE + 0x14))
+
+// ── USART1 ──────────────────────────────────────────────
+#define USART1_BASE    0x40013800
+#define USART1_STATR    (*(volatile u32*)(USART1_BASE + 0x00))
+#define USART1_DATAR    (*(volatile u32*)(USART1_BASE + 0x04))
+
+// ── TIM1 ──────────────────────────────────────────────
+#define TIM1_BASE    0x40012C00
+#define TIM1_CTLR1      (*(volatile u32*)(TIM1_BASE + 0x00))
+#define TIM1_CHCTLR1    (*(volatile u32*)(TIM1_BASE + 0x18))
+#define TIM1_CCER       (*(volatile u32*)(TIM1_BASE + 0x20))
+#define TIM1_PSC        (*(volatile u32*)(TIM1_BASE + 0x28))
+#define TIM1_ATRLR      (*(volatile u32*)(TIM1_BASE + 0x2C))
+#define TIM1_CH1CVR     (*(volatile u32*)(TIM1_BASE + 0x34))
+#define TIM1_BDTR       (*(volatile u32*)(TIM1_BASE + 0x44))
+
+// ── SysTick ──────────────────────────────────────────────
+#define SysTick_BASE    0xE000F000
+#define STK_SR          (*(volatile u32*)(SysTick_BASE + 0x04))
+
+// تأخير busy-loop بسيط (يكفي للأمثلة الأساسية)
+static void delay(volatile u32 cycles) {
+    while (cycles--) { __asm__ volatile ("nop"); }
+}
+```
+
+> 💡 جميع العناوين مستخرجة من *CH32V003 RM v1.9*، الفصل الخاصّ بكل peripheral. الجدول مرتّب بترتيب الاستخدام في الدرس.
+
+---
+
+
 ## 0. هدف المشروع
 
 نبني نظاماً متكاملاً يستعمل **كلّما تعلّمناه** في الدروس السابقة:

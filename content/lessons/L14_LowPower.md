@@ -18,6 +18,61 @@ tags: ["power", "sleep", "standby"]
 
 ---
 
+## 📋 تعريفات السجلات لهذا الدرس
+
+انسخ هذا البلوك إلى رأس `main.c` قبل تشغيل أيّ مثال من هذا الدرس. الأمثلة في الأسفل تفترض أنّ هذه التعريفات موجودة.
+
+```c
+typedef unsigned int u32;
+
+// ── RCC ──────────────────────────────────────────────
+#define RCC_BASE    0x40021000
+#define RCC_APB2PCENR   (*(volatile u32*)(RCC_BASE + 0x18))
+#define RCC_APB1PCENR   (*(volatile u32*)(RCC_BASE + 0x1C))
+#define RCC_RSTSCKR     (*(volatile u32*)(RCC_BASE + 0x20))
+
+// ── GPIOC ──────────────────────────────────────────────
+#define GPIOC_BASE    0x40011000
+#define GPIOC_CFGLR     (*(volatile u32*)(GPIOC_BASE + 0x00))
+#define GPIOC_OUTDR     (*(volatile u32*)(GPIOC_BASE + 0x0C))
+#define GPIOC_BSHR      (*(volatile u32*)(GPIOC_BASE + 0x10))
+#define GPIOC_BCR       (*(volatile u32*)(GPIOC_BASE + 0x14))
+
+// ── AFIO ──────────────────────────────────────────────
+#define AFIO_BASE    0x40010000
+#define AFIO_EXTICR     (*(volatile u32*)(AFIO_BASE + 0x08))
+
+// ── EXTI ──────────────────────────────────────────────
+#define EXTI_BASE    0x40010400
+#define EXTI_INTENR     (*(volatile u32*)(EXTI_BASE + 0x00))
+#define EXTI_FTENR      (*(volatile u32*)(EXTI_BASE + 0x0C))
+#define EXTI_INTFR      (*(volatile u32*)(EXTI_BASE + 0x14))
+#define EXTI_RTENR      (*(volatile u32*)(EXTI_BASE + 0x08))
+
+// ── PWR ──────────────────────────────────────────────
+#define PWR_BASE    0x40007000
+#define PWR_CTLR        (*(volatile u32*)(PWR_BASE + 0x00))
+#define PWR_CSR         (*(volatile u32*)(PWR_BASE + 0x04))
+#define PWR_AWUCSR      (*(volatile u32*)(PWR_BASE + 0x08))
+#define PWR_AWUWR       (*(volatile u32*)(PWR_BASE + 0x0C))
+#define PWR_AWUPSC      (*(volatile u32*)(PWR_BASE + 0x10))
+
+// ── PFIC ──────────────────────────────────────────────
+#define PFIC_BASE    0xE000E000
+#define PFIC_SCTLR      (*(volatile u32*)(PFIC_BASE + 0x10))
+#define PFIC_IENR1      (*(volatile u32*)(PFIC_BASE + 0x100))
+
+// تأخير busy-loop بسيط (يكفي للأمثلة الأساسية)
+static void delay(volatile u32 cycles) {
+    while (cycles--) { __asm__ volatile ("nop"); }
+}
+```
+
+> 💡 جميع العناوين مستخرجة من *CH32V003 RM v1.9*، الفصل الخاصّ بكل peripheral. الجدول مرتّب بترتيب الاستخدام في الدرس.
+
+---
+
+
 ## 0. لماذا أوضاع الطاقة؟
 
 في تطبيقات تعمل ببطارية (sensor node, remote control, IoT)، الـ CPU يكون نائماً 99% من الوقت. كلّ ميكروأمبير تُوفّره يطيل عمر البطارية:

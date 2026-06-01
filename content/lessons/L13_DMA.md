@@ -18,6 +18,55 @@ tags: ["dma"]
 
 ---
 
+## 📋 تعريفات السجلات لهذا الدرس
+
+انسخ هذا البلوك إلى رأس `main.c` قبل تشغيل أيّ مثال من هذا الدرس. الأمثلة في الأسفل تفترض أنّ هذه التعريفات موجودة.
+
+```c
+typedef unsigned int u32;
+
+// ── RCC ──────────────────────────────────────────────
+#define RCC_BASE    0x40021000
+#define RCC_AHBPCENR    (*(volatile u32*)(RCC_BASE + 0x14))
+
+// ── USART1 ──────────────────────────────────────────────
+#define USART1_BASE    0x40013800
+#define USART1_DATAR    (*(volatile u32*)(USART1_BASE + 0x04))
+#define USART1_CTLR3    (*(volatile u32*)(USART1_BASE + 0x14))
+
+// ── ADC1 ──────────────────────────────────────────────
+#define ADC1_BASE    0x40012400
+#define ADC1_CTLR2      (*(volatile u32*)(ADC1_BASE + 0x08))
+#define ADC1_RDATAR     (*(volatile u32*)(ADC1_BASE + 0x4C))
+
+// ── DMA1 ──────────────────────────────────────────────
+#define DMA1_BASE    0x40020000
+#define DMA1_INTFR      (*(volatile u32*)(DMA1_BASE + 0x00))
+#define DMA1_INTFCR     (*(volatile u32*)(DMA1_BASE + 0x04))
+#define DMA1_CH1_CFGR   (*(volatile u32*)(DMA1_BASE + 0x08))
+#define DMA1_CH1_CNTR   (*(volatile u32*)(DMA1_BASE + 0x0C))
+#define DMA1_CH1_PADDR  (*(volatile u32*)(DMA1_BASE + 0x10))
+#define DMA1_CH1_MADDR  (*(volatile u32*)(DMA1_BASE + 0x14))
+#define DMA1_CH4_CFGR   (*(volatile u32*)(DMA1_BASE + 0x44))
+#define DMA1_CH4_CNTR   (*(volatile u32*)(DMA1_BASE + 0x48))
+#define DMA1_CH4_PADDR  (*(volatile u32*)(DMA1_BASE + 0x4C))
+#define DMA1_CH4_MADDR  (*(volatile u32*)(DMA1_BASE + 0x50))
+
+// ── PFIC ──────────────────────────────────────────────
+#define PFIC_BASE    0xE000E000
+#define PFIC_IENR1      (*(volatile u32*)(PFIC_BASE + 0x100))
+
+// تأخير busy-loop بسيط (يكفي للأمثلة الأساسية)
+static void delay(volatile u32 cycles) {
+    while (cycles--) { __asm__ volatile ("nop"); }
+}
+```
+
+> 💡 جميع العناوين مستخرجة من *CH32V003 RM v1.9*، الفصل الخاصّ بكل peripheral. الجدول مرتّب بترتيب الاستخدام في الدرس.
+
+---
+
+
 ## 0. ما هو الـ DMA؟
 
 **DMA = Direct Memory Access** — وحدة عتادية تنقل بيانات بين الذاكرة والـ peripherals **بدون تدخّل الـ CPU**.

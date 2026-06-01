@@ -18,6 +18,49 @@ tags: ["iwdg", "wwdg"]
 
 ---
 
+## 📋 تعريفات السجلات لهذا الدرس
+
+انسخ هذا البلوك إلى رأس `main.c` قبل تشغيل أيّ مثال من هذا الدرس. الأمثلة في الأسفل تفترض أنّ هذه التعريفات موجودة.
+
+```c
+typedef unsigned int u32;
+
+// ── RCC ──────────────────────────────────────────────
+#define RCC_BASE    0x40021000
+#define RCC_APB1PCENR   (*(volatile u32*)(RCC_BASE + 0x1C))
+#define RCC_RSTSCKR     (*(volatile u32*)(RCC_BASE + 0x20))
+
+// ── GPIOC ──────────────────────────────────────────────
+#define GPIOC_BASE    0x40011000
+#define GPIOC_BSHR      (*(volatile u32*)(GPIOC_BASE + 0x10))
+#define GPIOC_BCR       (*(volatile u32*)(GPIOC_BASE + 0x14))
+
+// ── IWDG ──────────────────────────────────────────────
+#define IWDG_BASE    0x40003000
+#define IWDG_CTLR       (*(volatile u32*)(IWDG_BASE + 0x00))
+#define IWDG_PSCR       (*(volatile u32*)(IWDG_BASE + 0x04))
+#define IWDG_RLDR       (*(volatile u32*)(IWDG_BASE + 0x08))
+
+// ── WWDG ──────────────────────────────────────────────
+#define WWDG_BASE    0x40002C00
+#define WWDG_CTLR       (*(volatile u32*)(WWDG_BASE + 0x00))
+#define WWDG_CFGR       (*(volatile u32*)(WWDG_BASE + 0x04))
+
+// ── DBGMCU ──────────────────────────────────────────────
+#define DBGMCU_BASE    0xE000D004
+#define DBGMCU_CTLR     (*(volatile u32*)(DBGMCU_BASE + 0x00))
+
+// تأخير busy-loop بسيط (يكفي للأمثلة الأساسية)
+static void delay(volatile u32 cycles) {
+    while (cycles--) { __asm__ volatile ("nop"); }
+}
+```
+
+> 💡 جميع العناوين مستخرجة من *CH32V003 RM v1.9*، الفصل الخاصّ بكل peripheral. الجدول مرتّب بترتيب الاستخدام في الدرس.
+
+---
+
+
 ## 0. ما هو الـ Watchdog؟
 
 تخيّل عقرب ساعة يدور ببطء. كل فترة، يجب على البرنامج "إطعامه" (تصفيره). إذا نسي البرنامج (لأنه تعلّق في حلقة لا نهاية أو crash)، الـ Watchdog يصل إلى الصفر و **يُعيد تشغيل الشريحة**.

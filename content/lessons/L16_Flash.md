@@ -18,6 +18,35 @@ tags: ["flash", "eeprom"]
 
 ---
 
+## 📋 تعريفات السجلات لهذا الدرس
+
+انسخ هذا البلوك إلى رأس `main.c` قبل تشغيل أيّ مثال من هذا الدرس. الأمثلة في الأسفل تفترض أنّ هذه التعريفات موجودة.
+
+```c
+typedef unsigned int u32;
+
+// ── FLASH ──────────────────────────────────────────────
+#define FLASH_BASE    0x40022000
+#define FLASH_KEYR      (*(volatile u32*)(FLASH_BASE + 0x04))
+#define FLASH_CTLR      (*(volatile u32*)(FLASH_BASE + 0x10))
+#define FLASH_STATR     (*(volatile u32*)(FLASH_BASE + 0x0C))
+#define FLASH_ADDR      (*(volatile u32*)(FLASH_BASE + 0x14))
+
+// ── PFIC ──────────────────────────────────────────────
+#define PFIC_BASE    0xE000E000
+#define PFIC_CFGR       (*(volatile u32*)(PFIC_BASE + 0x48))
+
+// تأخير busy-loop بسيط (يكفي للأمثلة الأساسية)
+static void delay(volatile u32 cycles) {
+    while (cycles--) { __asm__ volatile ("nop"); }
+}
+```
+
+> 💡 جميع العناوين مستخرجة من *CH32V003 RM v1.9*، الفصل الخاصّ بكل peripheral. الجدول مرتّب بترتيب الاستخدام في الدرس.
+
+---
+
+
 ## 0. لماذا نكتب على الـ Flash من البرنامج نفسه؟
 
 سيناريوهات شائعة:
