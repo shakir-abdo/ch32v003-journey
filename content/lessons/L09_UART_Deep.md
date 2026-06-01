@@ -63,7 +63,7 @@ tags: ["uart", "serial"]
 
 ## 3. حساب Baud Rate
 
-`USART1->BRR` سجل 16 بت يحدّد قيمة قسمة الـ APB لتوليد ساعة الـ baud.
+`USART1_BRR` سجل 16 بت يحدّد قيمة قسمة الـ APB لتوليد ساعة الـ baud.
 
 ### المعادلة (في 16× oversampling — الافتراضي)
 
@@ -130,30 +130,28 @@ BRR = APBx_CLK / Baud_Rate
 ## 6. كود Polling — الحد الأدنى للعمل
 
 ```c
-#include "ch32v003fun.h"
-
 void uart_init(uint32_t baud) {
-    RCC->APB2PCENR |= RCC_APB2Periph_USART1 | RCC_APB2Periph_GPIOD | RCC_APB2Periph_AFIO;
+    RCC_APB2PCENR |= (1u << 14) /* USART1EN */ | (1u << 5)  /* IOPDEN */ | (1u << 0)  /* AFIOEN */;
 
     // PD5 = TX → AF Push-Pull, 50 MHz
-    GPIOD->CFGLR &= ~(0xF << (4 * 5));
-    GPIOD->CFGLR |=  (0b1011 << (4 * 5));    // CNF=10 (AF-PP), MODE=11
+    GPIOD_CFGLR &= ~(0xF << (4 * 5));
+    GPIOD_CFGLR |=  (0b1011 << (4 * 5));    // CNF=10 (AF-PP), MODE=11
 
     // PD6 = RX → Input Pull-Up (لتجنب floating)
-    GPIOD->CFGLR &= ~(0xF << (4 * 6));
-    GPIOD->CFGLR |=  (0x8 << (4 * 6));       // CNF=10 (Input Pull)
-    GPIOD->OUTDR |=  (1 << 6);               // Pull-Up
+    GPIOD_CFGLR &= ~(0xF << (4 * 6));
+    GPIOD_CFGLR |=  (0x8 << (4 * 6));       // CNF=10 (Input Pull)
+    GPIOD_OUTDR |=  (1 << 6);               // Pull-Up
 
     // Baud
-    USART1->BRR = SYSTEM_CORE_CLOCK / baud;
+    USART1_BRR = SYSTEM_CORE_CLOCK / baud;
 
     // UE | TE | RE
-    USART1->CTLR1 = (1 << 13) | (1 << 3) | (1 << 2);
+    USART1_CTLR1 = (1 << 13) | (1 << 3) | (1 << 2);
 }
 
 void uart_putc(char c) {
-    while (!(USART1->STATR & (1 << 7)));    // انتظر TXE
-    USART1->DATAR = c;
+    while (!(USART1_STATR & (1 << 7)));    // انتظر TXE
+    USART1_DATAR = c;
 }
 
 void uart_puts(const char *s) {
@@ -161,18 +159,18 @@ void uart_puts(const char *s) {
 }
 
 int uart_getc(void) {
-    if (USART1->STATR & (1 << 5))            // RXNE
-        return USART1->DATAR;
+    if (USART1_STATR & (1 << 5))            // RXNE
+        return USART1_DATAR;
     return -1;
 }
 
 int main(void) {
-    SystemInit();
+    // HSI = 24 MHz بشكل افتراضي عند الإقلاع — لا حاجة لتهيئة هنا
     uart_init(115200);
 
     while (1) {
         uart_puts("Hello World!\r\n");
-        Delay_Ms(1000);
+        delay(1000 * 8000);
     }
 }
 ```
@@ -182,7 +180,7 @@ int main(void) {
 ## 7. شرح Bitwise لتفعيل CTLR1
 
 ```c
-USART1->CTLR1 = (1 << 13) | (1 << 3) | (1 << 2);
+USART1_CTLR1 = (1 << 13) | (1 << 3) | (1 << 2);
 ```
 
 **ماذا يحدث**:
@@ -216,14 +214,14 @@ volatile uint8_t  rx_head = 0, rx_tail = 0;
 
 void uart_init_irq(uint32_t baud) {
     // ... (نفس uart_init)
-    USART1->CTLR1 |= (1 << 5);          // RXNEIE
-    NVIC_EnableIRQ(USART1_IRQn);
+    USART1_CTLR1 |= (1 << 5);          // RXNEIE
+    PFIC_IENR1 |= (1u << 29); /* USART1_IRQn = 29 */
 }
 
 __attribute__((interrupt))
 void USART1_IRQHandler(void) {
-    if (USART1->STATR & (1 << 5)) {                     // RXNE
-        uint8_t b = USART1->DATAR;                      // قراءة تمسح RXNE
+    if (USART1_STATR & (1 << 5)) {                     // RXNE
+        uint8_t b = USART1_DATAR;                      // قراءة تمسح RXNE
         uint8_t next = (rx_head + 1) % RX_BUF_SIZE;
         if (next != rx_tail) {                           // الحوض غير ممتلئ
             rx_buf[rx_head] = b;
@@ -261,7 +259,7 @@ int _write(int fd, const char *buf, int len) {
 }
 
 int main(void) {
-    SystemInit();
+    // HSI = 24 MHz بشكل افتراضي عند الإقلاع — لا حاجة لتهيئة هنا
     uart_init(115200);
     printf("Temp: %d.%02d °C\n", t/100, t%100);
 }
@@ -278,14 +276,14 @@ char line[32]; int line_len = 0;
 
 void process_line(void) {
     line[line_len] = 0;
-    if (line[0] == '1') GPIOC->BSHR = (1 << 1);
-    else if (line[0] == '0') GPIOC->BCR  = (1 << 1);
+    if (line[0] == '1') GPIOC_BSHR = (1 << 1);
+    else if (line[0] == '0') GPIOC_BCR  = (1 << 1);
     else if (line[0] == 'r') { printf("LED state\n"); }
     line_len = 0;
 }
 
 int main(void) {
-    SystemInit(); uart_init_irq(115200);
+    // HSI = 24 MHz بشكل افتراضي عند الإقلاع — لا حاجة لتهيئة هنا
     while (1) {
         int c = uart_read();
         if (c < 0) { __asm__("wfi"); continue; }

@@ -121,7 +121,7 @@ CH32V003 يحتوي على **Pull-up و Pull-down داخلية** يمكن تفع
 | `EXTI_FTENR` | `0x4001040C` | اشتعال المقاطعة عند الحافة الهابطة | §6.5.1, ص.34 |
 | `EXTI_INTFR` | `0x40010414` | علم المقاطعة (يُمسح بكتابة 1) | §6.5.1, ص.34 |
 
-> ⚠️ الـ macros مثل `GPIOC->CFGLR` و `EXTI->INTENR` معرّفة في `ch32v003fun.h` وتترجم إلى نفس العناوين الواردة في الجدول.
+> ⚠️ الأسماء `GPIOC_CFGLR`, `EXTI_INTENR` التي نستعملها هي **#define**ات نُعرّفها بأنفسنا في رأس كل مثال (انظر نمط L03). كل اسم يُترجم إلى `*(volatile u32*)(BASE + offset)`.
 
 ---
 
@@ -184,7 +184,7 @@ bit 3  bit 2 │ bit 1   bit 0
 
 **الكود**:
 ```c
-GPIOC->CFGLR &= ~(0xF << (4 * 2));
+GPIOC_CFGLR &= ~(0xF << (4 * 2));
 ```
 
 **ماذا يحدث خطوة خطوة**:
@@ -215,7 +215,7 @@ GPIOC->CFGLR &= ~(0xF << (4 * 2));
 
 **الكود**:
 ```c
-GPIOC->CFGLR |= (0x8 << (4 * 2));
+GPIOC_CFGLR |= (0x8 << (4 * 2));
 ```
 
 **ماذا يحدث**:
@@ -238,7 +238,7 @@ GPIOC->CFGLR |= (0x8 << (4 * 2));
 
 **الكود**:
 ```c
-GPIOC->OUTDR |= (1 << 2);
+GPIOC_OUTDR |= (1 << 2);
 ```
 
 **ماذا يحدث**:
@@ -246,7 +246,7 @@ GPIOC->OUTDR |= (1 << 2);
 1. `1 << 2` = `0b0000_0100` — قناع للبت 2 فقط.
 2. `OUTDR |= ...` = نضع البت 2 = `1` (Pull-up).
 
-**ملاحظة**: إذا أردنا Pull-down: `GPIOC->OUTDR &= ~(1 << 2);`
+**ملاحظة**: إذا أردنا Pull-down: `GPIOC_OUTDR &= ~(1 << 2);`
 
 ---
 
@@ -254,13 +254,13 @@ GPIOC->OUTDR |= (1 << 2);
 
 **الكود**:
 ```c
-int pressed = (GPIOC->INDR & (1 << 2)) == 0;
+int pressed = (GPIOC_INDR & (1 << 2)) == 0;
 ```
 
 **ماذا يحدث**:
 
 1. `(1 << 2)` = `0b0000_0100` — قناع للبت 2.
-2. `GPIOC->INDR & 0b0100` = يستخرج **فقط** بت PC2 من السجل. إما `0` أو `4`.
+2. `GPIOC_INDR & 0b0100` = يستخرج **فقط** بت PC2 من السجل. إما `0` أو `4`.
 3. `== 0` → إذا البت 0 (زر مضغوط Active-Low)، النتيجة `true`. وإلا `false`.
 
 > 🧠 **الفهم العميق**: `(REG & mask) == 0` تعني "بت معيّن مطفأ". `(REG & mask) != 0` تعني "بت معيّن مشتعل".
@@ -270,38 +270,36 @@ int pressed = (GPIOC->INDR & (1 << 2)) == 0;
 ## 7. الكود الكامل — Polling
 
 ```c
-#include "ch32v003fun.h"
-
 #define BTN_PIN   2     // الزر على PC2
 #define LED_PIN   1     // LED على PC1
 
 void gpio_init(void) {
     // 1) تفعيل ساعة GPIOC
-    RCC->APB2PCENR |= RCC_APB2Periph_GPIOC;
+    RCC_APB2PCENR |= (1u << 4)  /* IOPCEN */;
 
     // 2) PC2 = Input with Pull-Up
-    GPIOC->CFGLR &= ~(0xF << (4 * BTN_PIN));    // امسح
-    GPIOC->CFGLR |=  (0x8 << (4 * BTN_PIN));    // CNF=10, MODE=00
-    GPIOC->OUTDR |=  (1   <<       BTN_PIN);    // اختر Pull-Up
+    GPIOC_CFGLR &= ~(0xF << (4 * BTN_PIN));    // امسح
+    GPIOC_CFGLR |=  (0x8 << (4 * BTN_PIN));    // CNF=10, MODE=00
+    GPIOC_OUTDR |=  (1   <<       BTN_PIN);    // اختر Pull-Up
 
     // 3) PC1 = Output Push-Pull 50 MHz
-    GPIOC->CFGLR &= ~(0xF << (4 * LED_PIN));
-    GPIOC->CFGLR |=  (0x3 << (4 * LED_PIN));    // CNF=00, MODE=11
+    GPIOC_CFGLR &= ~(0xF << (4 * LED_PIN));
+    GPIOC_CFGLR |=  (0x3 << (4 * LED_PIN));    // CNF=00, MODE=11
 }
 
 static inline int button_pressed(void) {
-    return (GPIOC->INDR & (1 << BTN_PIN)) == 0;
+    return (GPIOC_INDR & (1 << BTN_PIN)) == 0;
 }
 
 int main(void) {
-    SystemInit();
+    // HSI = 24 MHz بشكل افتراضي عند الإقلاع — لا حاجة لتهيئة هنا
     gpio_init();
 
     while (1) {
         if (button_pressed())
-            GPIOC->BSHR = (1 << LED_PIN);   // LED ON
+            GPIOC_BSHR = (1 << LED_PIN);   // LED ON
         else
-            GPIOC->BCR  = (1 << LED_PIN);   // LED OFF
+            GPIOC_BCR  = (1 << LED_PIN);   // LED OFF
     }
 }
 ```
@@ -327,7 +325,7 @@ LOW    └─────────┘  └─┘ └─┘ ← ضوضاء
 
 ```c
 if (button_pressed()) {
-    Delay_Ms(20);              // انتظر 20ms
+    delay(20 * 8000);              // انتظر 20ms
     if (button_pressed())      // تأكد ثانية
         do_action();
 }
@@ -357,7 +355,7 @@ if (button_pressed() && (ticks_ms - last_press) > 30) {
 
 8 خطوط EXTI (Line 0..7). كل خط مرتبط بـ pin معيّن في كل Port:
 
-- Line 0: PA0 أو PC0 أو PD0 (تختار واحداً عبر `AFIO->EXTICR`).
+- Line 0: PA0 أو PC0 أو PD0 (تختار واحداً عبر `AFIO_EXTICR`).
 - Line 2: PA2 أو PC2 أو PD2 (نفس القاعدة).
 - ...إلخ.
 
@@ -365,7 +363,7 @@ if (button_pressed() && (ticks_ms - last_press) > 30) {
 
 ### اختيار Port C لـ Line 2
 
-`AFIO->EXTICR` سجل 32-بت يخصّص بتَّين لكل من الخطوط الثمانية:
+`AFIO_EXTICR` سجل 32-بت يخصّص بتَّين لكل من الخطوط الثمانية:
 
 | البتات | الخط | القيم |
 |---------|------|-------|
@@ -381,7 +379,7 @@ if (button_pressed() && (ticks_ms - last_press) > 30) {
 **نريد**: بتات [5:4] = `10` (PC) لـ Line 2.
 
 ```c
-AFIO->EXTICR = (AFIO->EXTICR & ~(0x3 << (2 * 2)))    // امسح بتات [5:4]
+AFIO_EXTICR = (AFIO_EXTICR & ~(0x3 << (2 * 2)))    // امسح بتات [5:4]
              | (0x2 << (2 * 2));                      // اكتب 10 = PC
 ```
 
@@ -398,46 +396,44 @@ AFIO->EXTICR = (AFIO->EXTICR & ~(0x3 << (2 * 2)))    // امسح بتات [5:4]
 ## 10. الكود الكامل — EXTI
 
 ```c
-#include "ch32v003fun.h"
-
 #define BTN_PIN  2
 #define LED_PIN  1
 
 void exti_init(void) {
-    RCC->APB2PCENR |= RCC_APB2Periph_GPIOC | RCC_APB2Periph_AFIO;
+    RCC_APB2PCENR |= (1u << 4)  /* IOPCEN */ | (1u << 0)  /* AFIOEN */;
 
     // PC2 = Input Pull-Up
-    GPIOC->CFGLR &= ~(0xF << (4 * BTN_PIN));
-    GPIOC->CFGLR |=  (0x8 << (4 * BTN_PIN));
-    GPIOC->OUTDR |=  (1   <<       BTN_PIN);
+    GPIOC_CFGLR &= ~(0xF << (4 * BTN_PIN));
+    GPIOC_CFGLR |=  (0x8 << (4 * BTN_PIN));
+    GPIOC_OUTDR |=  (1   <<       BTN_PIN);
 
     // PC1 = Output (LED)
-    GPIOC->CFGLR &= ~(0xF << (4 * LED_PIN));
-    GPIOC->CFGLR |=  (0x3 << (4 * LED_PIN));
+    GPIOC_CFGLR &= ~(0xF << (4 * LED_PIN));
+    GPIOC_CFGLR |=  (0x3 << (4 * LED_PIN));
 
     // اختر PC كمصدر EXTI Line 2
-    AFIO->EXTICR = (AFIO->EXTICR & ~(0x3 << (2 * BTN_PIN)))
+    AFIO_EXTICR = (AFIO_EXTICR & ~(0x3 << (2 * BTN_PIN)))
                  | (0x2 << (2 * BTN_PIN));
 
     // فعّل المقاطعة + الحافة الهابطة (Active-Low: الحدث عند الضغط)
-    EXTI->INTENR |= (1 << BTN_PIN);
-    EXTI->FTENR  |= (1 << BTN_PIN);
-    EXTI->RTENR  &= ~(1 << BTN_PIN);
+    EXTI_INTENR |= (1 << BTN_PIN);
+    EXTI_FTENR  |= (1 << BTN_PIN);
+    EXTI_RTENR  &= ~(1 << BTN_PIN);
 
     // فعّل القناة في PFIC
-    NVIC_EnableIRQ(EXTI7_0_IRQn);
+    PFIC_IENR1 |= (1u << 20); /* EXTI7_0_IRQn = 20 */
 }
 
 __attribute__((interrupt))
 void EXTI7_0_IRQHandler(void) {
-    if (EXTI->INTFR & (1 << BTN_PIN)) {
-        EXTI->INTFR = (1 << BTN_PIN);     // مسح العلم (write 1 to clear!)
-        GPIOC->OUTDR ^= (1 << LED_PIN);   // toggle LED
+    if (EXTI_INTFR & (1 << BTN_PIN)) {
+        EXTI_INTFR = (1 << BTN_PIN);     // مسح العلم (write 1 to clear!)
+        GPIOC_OUTDR ^= (1 << LED_PIN);   // toggle LED
     }
 }
 
 int main(void) {
-    SystemInit();
+    // HSI = 24 MHz بشكل افتراضي عند الإقلاع — لا حاجة لتهيئة هنا
     exti_init();
     while (1) {
         __asm__ volatile ("wfi");   // نَم حتى المقاطعة
@@ -454,8 +450,8 @@ int main(void) {
 في معظم الـ peripherals، نمسح علماً بكتابة `0`. لكن في EXTI الـ INTFR من نوع **`rc_w1`** (Read, Clear by Writing 1). السبب: تصميم آمن للمقاطعات حيث لا يمكن مسح علم آخر بالخطأ.
 
 ```c
-EXTI->INTFR = (1 << 2);    // ✅ يمسح العلم لـ Line 2 فقط
-EXTI->INTFR &= ~(1 << 2);  // ❌ لا يفعل شيئاً!
+EXTI_INTFR = (1 << 2);    // ✅ يمسح العلم لـ Line 2 فقط
+EXTI_INTFR &= ~(1 << 2);  // ❌ لا يفعل شيئاً!
 ```
 
 > 💀 **الفخ الميت**: إذا نسيت المسح، المقاطعة تعيد إطلاق نفسها بلا توقف → النظام يتعلّق.
@@ -467,10 +463,10 @@ EXTI->INTFR &= ~(1 << 2);  // ❌ لا يفعل شيئاً!
 | العَرَض | السبب | الحل |
 |---------|------|------|
 | القراءة عشوائية بدون ضغط | Floating (CNF=01) | استخدم `CNF=10` + `OUTDR=1` |
-| المقاطعة تشتعل بلا توقف | لم تمسح INTFR | `EXTI->INTFR = (1<<N)` |
+| المقاطعة تشتعل بلا توقف | لم تمسح INTFR | `EXTI_INTFR = (1<<N)` |
 | الزر مضغوط لكن `INDR=1` | اخترت Pull-Down بينما الزر إلى GND | `OUTDR |= (1<<N)` (pull-up) |
 | ضغطة واحدة = 5 مقاطعات | لا debouncing | استخدم time-based في ISR |
-| المقاطعة لا تشتعل أصلاً | نسيت `RCC_APB2Periph_AFIO` | فعّل ساعة AFIO |
+| المقاطعة لا تشتعل أصلاً | نسيت `(1u << 0)  /* AFIOEN */` | فعّل ساعة AFIO |
 | تعمل على PC2 لكن PA2 لا | EXTICR لا يزال على PC | اضبط الخط 2 إلى `00` لـ PA |
 
 ---
@@ -494,4 +490,4 @@ EXTI->INTFR &= ~(1 << 2);  // ❌ لا يفعل شيئاً!
   - الفصل 7.3.2.5 (AFIO_EXTICR) — صفحة 58
   - الفصل 6.4 "EXTI" — صفحة 33
   - الفصل 6.5.1 (EXTI Registers: INTENR/FTENR/RTENR/INTFR) — صفحة 34
-- **ch32v003fun**: ملف `ch32v003fun.h` لأسماء البتات والـ macros.
+

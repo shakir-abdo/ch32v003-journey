@@ -137,7 +137,7 @@ void TIM2_IRQHandler(void) { ... }
 
 > 📖 *RM, §6.5.2 "PFIC Registers" — صفحات 35-46.*
 
-> 💡 لحسن الحظ، لا نحتاج التعامل مع هذه السجلات مباشرة. الـ macros `NVIC_EnableIRQ()` و `NVIC_DisableIRQ()` من `ch32v003fun.h` تكفي 95% من الحالات.
+> 💡 في هذا المنهج نتعامل مع `PFIC_IENR1` مباشرة عبر `PFIC_IENR1 |= (1u << N)`. كثير من الإطارات تخفي هذا خلف `NVIC_EnableIRQ(N)` لكنّ الكتابة المباشرة تُظهر العنوان (`0xE000E100`) ورقم الـ IRQ بوضوح.
 
 ---
 
@@ -146,7 +146,7 @@ void TIM2_IRQHandler(void) { ... }
 ### تفعيل مقاطعة
 
 ```c
-NVIC_EnableIRQ(EXTI7_0_IRQn);
+PFIC_IENR1 |= (1u << 20); /* EXTI7_0_IRQn = 20 */
 ```
 
 ما يحدث داخلياً: يكتب `1` في البت المناسب من `PFIC_IENR1`.
@@ -175,9 +175,9 @@ __enable_irq();    // = csrsi mstatus, 8
 
 ---
 
-## 6. شرح Bitwise — كيف يعمل `NVIC_EnableIRQ` تحت الغطاء
+## 6. شرح Bitwise — كيف نفعّل مقاطعة يدوياً
 
-`NVIC_EnableIRQ(20)` (مثلاً للـ EXTI7_0) يفعل ما يلي:
+لتفعيل المقاطعة رقم 20 (EXTI7_0) مثلاً، نكتب:
 
 ```c
 PFIC->IENR[20 / 32] = (1 << (20 % 32));
@@ -199,46 +199,44 @@ PFIC->IENR[20 / 32] = (1 << (20 % 32));
 ## 7. مثال متكامل — SysTick + EXTI مع أولويات
 
 ```c
-#include "ch32v003fun.h"
-
 volatile uint32_t ticks_ms = 0;
 volatile uint8_t  btn_event = 0;
 
 void systick_init(void) {
-    SysTick->CTLR = 0; SysTick->CNT = 0; SysTick->SR = 0;
-    SysTick->CMP  = 47999;
-    SysTick->CTLR = 0xF;     // STE | STIE | STCLK | STRE
-    NVIC_EnableIRQ(SysTicK_IRQn);
+    STK_CTLR = 0; STK_CNT = 0; STK_SR = 0;
+    STK_CMP  = 47999;
+    STK_CTLR = 0xF;     // STE | STIE | STCLK | STRE
+    PFIC_IENR1 |= (1u << 12); /* SysTicK_IRQn = 12 */
     NVIC_SetPriority(SysTicK_IRQn, 1);   // أولوية أقل
 }
 
 void button_exti_init(void) {
     // ... (نفس الدرس 04)
-    NVIC_EnableIRQ(EXTI7_0_IRQn);
+    PFIC_IENR1 |= (1u << 20); /* EXTI7_0_IRQn = 20 */
     NVIC_SetPriority(EXTI7_0_IRQn, 0);   // أولوية أعلى (الزر أهم)
 }
 
 __attribute__((interrupt))
 void SysTick_Handler(void) {
-    SysTick->SR = 0;
+    STK_SR = 0;
     ticks_ms++;
 }
 
 __attribute__((interrupt))
 void EXTI7_0_IRQHandler(void) {
-    EXTI->INTFR = (1 << 2);
+    EXTI_INTFR = (1 << 2);
     btn_event = 1;
 }
 
 int main(void) {
-    SystemInit();
+    // HSI = 24 MHz بشكل افتراضي عند الإقلاع — لا حاجة لتهيئة هنا
     systick_init();
     button_exti_init();
 
     while (1) {
         if (btn_event) {
             btn_event = 0;
-            GPIOC->OUTDR ^= (1 << 1);
+            GPIOC_OUTDR ^= (1 << 1);
         }
         __asm__ volatile ("wfi");
     }
@@ -256,15 +254,15 @@ int main(void) {
 ```c
 // ❌ سيء
 void EXTI7_0_IRQHandler(void) {
-    EXTI->INTFR = (1<<2);
-    Delay_Ms(100);           // ← لا تفعل هذا!
+    EXTI_INTFR = (1<<2);
+    delay(100 * 8000);           // ← لا تفعل هذا!
     printf("clicked");        // ← ولا هذا!
     update_oled_display();    // ← ولا هذا!
 }
 
 // ✅ جيد
 void EXTI7_0_IRQHandler(void) {
-    EXTI->INTFR = (1<<2);
+    EXTI_INTFR = (1<<2);
     btn_event = 1;            // ← فقط ارفع علم
 }
 // والـ main() يفعل البقية
@@ -281,7 +279,7 @@ uint32_t ticks_ms = 0;              // ❌ المُترجم قد يُحسّن ا
 
 ```c
 void EXTI7_0_IRQHandler(void) {
-    EXTI->INTFR = (1 << 2);   // ← أول شيء
+    EXTI_INTFR = (1 << 2);   // ← أول شيء
     // ... باقي الكود
 }
 ```
@@ -328,7 +326,7 @@ __asm__ volatile ("wfi");
 2. **أولويات**: مقاطعتان (SysTick + EXTI). تأكد أن EXTI تقاطع SysTick.
 3. **Critical Section**: استخدم `__disable_irq()` لتعديل متغيّر 64-bit بأمان.
 4. **Re-entry**: اصنع ISR طويل + قس عدد المقاطعات الضائعة.
-5. **Software trigger**: استخدم `SysTick->CTLR |= (1 << 31)` (SWIE) لإطلاق مقاطعة برمجياً.
+5. **Software trigger**: استخدم `STK_CTLR |= (1 << 31)` (SWIE) لإطلاق مقاطعة برمجياً.
 
 ---
 

@@ -127,13 +127,13 @@ CCR = APB_CLK / (25 × I2C_freq)  // duty=1
 
 ```c
 // FREQ field (5 بتات) في CTLR2 = تردد APB بالـ MHz
-I2C1->CTLR2 = 48;                          // = APB freq in MHz
+I2C1_CTLR2 = 48;                          // = APB freq in MHz
 
 // CCR في CKCFGR
-I2C1->CKCFGR = 240;                        // standard 100 kHz
+I2C1_CKCFGR = 240;                        // standard 100 kHz
 
 // PE = enable
-I2C1->CTLR1 = (1 << 0);
+I2C1_CTLR1 = (1 << 0);
 ```
 
 **ملاحظات**:
@@ -149,8 +149,8 @@ I2C يستخدم **Open-Drain** (لذلك pull-up خارجي):
 
 ```c
 // PC1 (SDA) و PC2 (SCL) كـ AF Open-Drain
-GPIOC->CFGLR &= ~((0xF << (4*1)) | (0xF << (4*2)));
-GPIOC->CFGLR |=  ((0b1111 << (4*1)) | (0b1111 << (4*2)));
+GPIOC_CFGLR &= ~((0xF << (4*1)) | (0xF << (4*2)));
+GPIOC_CFGLR |=  ((0b1111 << (4*1)) | (0b1111 << (4*2)));
 //                  CNF=11 (AF OD), MODE=11 (50MHz)
 ```
 
@@ -161,46 +161,44 @@ GPIOC->CFGLR |=  ((0b1111 << (4*1)) | (0b1111 << (4*2)));
 ## 7. الكود الكامل — Master Write
 
 ```c
-#include "ch32v003fun.h"
-
 void i2c_init(void) {
-    RCC->APB2PCENR |= RCC_APB2Periph_GPIOC | RCC_APB2Periph_AFIO;
-    RCC->APB1PCENR |= RCC_APB1Periph_I2C1;
+    RCC_APB2PCENR |= (1u << 4)  /* IOPCEN */ | (1u << 0)  /* AFIOEN */;
+    RCC_APB1PCENR |= (1u << 21) /* I2C1EN */;
 
     // GPIO: SDA=PC1, SCL=PC2 → AF Open-Drain
-    GPIOC->CFGLR &= ~((0xF << 4) | (0xF << 8));
-    GPIOC->CFGLR |=  ((0b1111 << 4) | (0b1111 << 8));
+    GPIOC_CFGLR &= ~((0xF << 4) | (0xF << 8));
+    GPIOC_CFGLR |=  ((0b1111 << 4) | (0b1111 << 8));
 
     // Disable peripheral قبل التهيئة
-    I2C1->CTLR1 &= ~(1 << 0);
+    I2C1_CTLR1 &= ~(1 << 0);
 
     // Set APB freq (24 MHz في وضع HSI افتراضي، 48 مع PLL)
-    I2C1->CTLR2 = 48;          // غيّر هذا حسب APB لديك
-    I2C1->CKCFGR = 240;        // 100 kHz @ 48 MHz APB
+    I2C1_CTLR2 = 48;          // غيّر هذا حسب APB لديك
+    I2C1_CKCFGR = 240;        // 100 kHz @ 48 MHz APB
 
     // فعّل الـ peripheral
-    I2C1->CTLR1 |= (1 << 0);
+    I2C1_CTLR1 |= (1 << 0);
 }
 
 int i2c_write(uint8_t addr7, const uint8_t *data, int len) {
     // 1) START
-    I2C1->CTLR1 |= (1 << 8);
-    while (!(I2C1->STAR1 & (1 << 0)));    // wait SB
+    I2C1_CTLR1 |= (1 << 8);
+    while (!(I2C1_STAR1 & (1 << 0)));    // wait SB
 
     // 2) ADDR + W
-    I2C1->DATAR = (addr7 << 1) | 0;
-    while (!(I2C1->STAR1 & (1 << 1)));    // wait ADDR
-    (void)I2C1->STAR2;                     // قراءة STAR2 تمسح ADDR
+    I2C1_DATAR = (addr7 << 1) | 0;
+    while (!(I2C1_STAR1 & (1 << 1)));    // wait ADDR
+    (void)I2C1_STAR2;                     // قراءة STAR2 تمسح ADDR
 
     // 3) DATA
     for (int i = 0; i < len; i++) {
-        while (!(I2C1->STAR1 & (1 << 7)));    // TxE
-        I2C1->DATAR = data[i];
+        while (!(I2C1_STAR1 & (1 << 7)));    // TxE
+        I2C1_DATAR = data[i];
     }
-    while (!(I2C1->STAR1 & (1 << 2)));    // BTF
+    while (!(I2C1_STAR1 & (1 << 2)));    // BTF
 
     // 4) STOP
-    I2C1->CTLR1 |= (1 << 9);
+    I2C1_CTLR1 |= (1 << 9);
     return 0;
 }
 ```
@@ -276,19 +274,19 @@ void ssd1306_clear(void) {
 ```c
 void i2c_scan(void) {
     for (uint8_t addr = 0x08; addr < 0x78; addr++) {
-        I2C1->CTLR1 |= (1 << 8);                   // START
-        while (!(I2C1->STAR1 & (1 << 0)));
-        I2C1->DATAR = (addr << 1) | 0;
+        I2C1_CTLR1 |= (1 << 8);                   // START
+        while (!(I2C1_STAR1 & (1 << 0)));
+        I2C1_DATAR = (addr << 1) | 0;
         // wait ADDR or AF (acknowledge failure)
         uint32_t to = 10000;
-        while (!(I2C1->STAR1 & ((1<<1) | (1<<10))) && --to);
-        if (I2C1->STAR1 & (1 << 1)) {
+        while (!(I2C1_STAR1 & ((1<<1) | (1<<10))) && --to);
+        if (I2C1_STAR1 & (1 << 1)) {
             printf("Found: 0x%02X\n", addr);
-            (void)I2C1->STAR2;
+            (void)I2C1_STAR2;
         } else {
-            I2C1->STAR1 &= ~(1 << 10);              // clear AF
+            I2C1_STAR1 &= ~(1 << 10);              // clear AF
         }
-        I2C1->CTLR1 |= (1 << 9);                   // STOP
+        I2C1_CTLR1 |= (1 << 9);                   // STOP
         delay_ms(2);
     }
 }

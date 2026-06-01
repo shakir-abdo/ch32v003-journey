@@ -37,7 +37,7 @@ tags: ["systick", "timer"]
 ### المشكلة مع `Delay_Ms`
 
 ```c
-Delay_Ms(500);   // الـ CPU "في سُبات" 500ms — لا يفعل شيء!
+delay(500 * 8000);   // الـ CPU "في سُبات" 500ms — لا يفعل شيء!
 ```
 
 أثناء هذه المدة:
@@ -138,7 +138,7 @@ CMP لـ 1ms = (24,000,000 × 0.001) - 1 = 23,999
 نريد ضبط: `STE=1, STIE=1, STCLK=1, STRE=1`.
 
 ```c
-SysTick->CTLR = (1 << 0)  | (1 << 1) | (1 << 2) | (1 << 3);
+STK_CTLR = (1 << 0)  | (1 << 1) | (1 << 2) | (1 << 3);
 //              ─STE──     ─STIE─    ─STCLK─    ─STRE──
 //                ↓         ↓         ↓          ↓
 //              0b0001 | 0b0010 | 0b0100 | 0b1000  =  0b1111  =  0xF
@@ -155,29 +155,27 @@ SysTick->CTLR = (1 << 0)  | (1 << 1) | (1 << 2) | (1 << 3);
 ## 6. الكود الكامل — مقاطعة كل 1ms
 
 ```c
-#include "ch32v003fun.h"
-
 volatile uint32_t ticks_ms = 0;
 
 void systick_init(void) {
     // امسح كل شيء أولاً
-    SysTick->CTLR = 0;
-    SysTick->CNT  = 0;
-    SysTick->SR   = 0;
+    STK_CTLR = 0;
+    STK_CNT  = 0;
+    STK_SR   = 0;
 
     // 1ms على 48 MHz
-    SysTick->CMP  = 48000 - 1;
+    STK_CMP  = 48000 - 1;
 
     // STE=1, STIE=1, STCLK=1 (HCLK), STRE=1 (auto-reload)
-    SysTick->CTLR = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3);
+    STK_CTLR = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3);
 
     // فعّل المقاطعة في PFIC (NVIC)
-    NVIC_EnableIRQ(SysTicK_IRQn);
+    PFIC_IENR1 |= (1u << 12); /* SysTicK_IRQn = 12 */
 }
 
 __attribute__((interrupt))
 void SysTick_Handler(void) {
-    SysTick->SR = 0;       // مسح علم CNTIF (write 0)
+    STK_SR = 0;       // مسح علم CNTIF (write 0)
     ticks_ms++;
 }
 ```
@@ -224,7 +222,7 @@ void delay_blocking_ms(uint32_t ms) {
 uint32_t last_blink = 0, last_button = 0;
 
 int main(void) {
-    SystemInit();
+    // HSI = 24 MHz بشكل افتراضي عند الإقلاع — لا حاجة لتهيئة هنا
     led_init();
     button_init();
     systick_init();
@@ -234,7 +232,7 @@ int main(void) {
 
         if (now - last_blink >= 500) {       // كل 500ms
             last_blink = now;
-            GPIOC->OUTDR ^= (1 << 1);        // toggle LED
+            GPIOC_OUTDR ^= (1 << 1);        // toggle LED
         }
 
         if (now - last_button >= 10) {       // كل 10ms
@@ -257,9 +255,9 @@ int main(void) {
 
 ```c
 void delay_us_busy(uint32_t us) {
-    uint32_t start = SysTick->CNT;
+    uint32_t start = STK_CNT;
     uint32_t cycles = us * (SYSTEM_CORE_CLOCK / 1000000);   // 48 على 48MHz
-    while ((SysTick->CNT - start) < cycles);
+    while ((STK_CNT - start) < cycles);
 }
 ```
 
@@ -270,7 +268,7 @@ void delay_us_busy(uint32_t us) {
 ## 10. شرح Bitwise لمسح علم CNTIF
 
 ```c
-SysTick->SR = 0;
+STK_SR = 0;
 ```
 
 نكتب 0 على كامل السجل. لكن `SR` بت 0 فقط منه قابل للكتابة (CNTIF). البتات 1-31 محجوزة وكتابة أي شيء لها مهملة.
@@ -297,12 +295,12 @@ SysTick->SR = 0;
 
 | العَرَض | السبب | الحل |
 |---------|------|------|
-| المقاطعة لا تشتعل أبداً | نسيت `NVIC_EnableIRQ` | `NVIC_EnableIRQ(SysTicK_IRQn)` |
+| المقاطعة لا تشتعل أبداً | نسيت تفعيل المقاطعة في `PFIC_IENR1` | `PFIC_IENR1 |= (1u << 12); /* SysTicK_IRQn = 12 */` |
 | `millis()` تنمو ببطء غريب | اخترت STCLK=0 (HCLK/8) بالخطأ | ضع `STCLK=1` |
 | العدّاد لا يبدأ | `STE=0` | فعّل `STE` |
 | المقاطعة تشتعل مرة واحدة فقط | نسيت `STRE` | فعّل auto-reload |
 | `ticks_ms` تتذبذب في القراءة من الـ main | متغير 32-bit مقروء جزئياً أثناء IRQ | اقرأ في متغير محلي مرة واحدة |
-| `wfi` لا يستيقظ | المقاطعة معطّلة في PFIC | تحقق من `NVIC_EnableIRQ` |
+| `wfi` لا يستيقظ | المقاطعة معطّلة في PFIC | تحقق من بت المقاطعة في `PFIC_IENR1` |
 
 ---
 

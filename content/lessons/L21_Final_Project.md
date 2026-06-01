@@ -109,17 +109,17 @@ volatile uint8_t current_row = 0;
 
 void __attribute__((interrupt))
 SysTick_Handler(void) {
-    SysTick->SR = 0;
+    STK_SR = 0;
 
     // أطفئ الصف السابق
-    GPIOC->BCR = 0b11111;
+    GPIOC_BCR = 0b11111;
 
     // اضبط أعمدة الصف الجديد
     uint8_t cols = active_pattern[current_row];
-    GPIOD->OUTDR = (GPIOD->OUTDR & ~0b11111) | (cols & 0b11111);
+    GPIOD_OUTDR = (GPIOD_OUTDR & ~0b11111) | (cols & 0b11111);
 
     // شغّل الصف الجديد
-    GPIOC->BSHR = (1 << current_row);
+    GPIOC_BSHR = (1 << current_row);
 
     current_row = (current_row + 1) % 5;
 }
@@ -133,14 +133,14 @@ SysTick_Handler(void) {
 
 ```c
 void brightness_init(void) {
-    RCC->APB2PCENR |= RCC_APB2Periph_TIM1;
-    TIM1->PSC = 48 - 1;        // 1MHz
-    TIM1->ATRLR = 255;
-    TIM1->CHCTLR1 = (0b110 << 4);   // CH1 PWM mode 1
-    TIM1->CCER  = (1 << 0);
-    TIM1->BDTR  = (1 << 15);   // MOE
-    TIM1->CH1CVR = state.brightness;
-    TIM1->CTLR1 = 1;
+    RCC_APB2PCENR |= (1u << 11) /* TIM1EN */;
+    TIM1_PSC = 48 - 1;        // 1MHz
+    TIM1_ATRLR = 255;
+    TIM1_CHCTLR1 = (0b110 << 4);   // CH1 PWM mode 1
+    TIM1_CCER  = (1 << 0);
+    TIM1_BDTR  = (1 << 15);   // MOE
+    TIM1_CH1CVR = state.brightness;
+    TIM1_CTLR1 = 1;
 }
 ```
 
@@ -165,7 +165,7 @@ void process_cmd(void) {
         state.current = PATTERN_OFF;
     } else if (strncmp(cmd_buf, "bright ", 7) == 0) {
         state.brightness = atoi(cmd_buf + 7);
-        TIM1->CH1CVR = state.brightness;
+        TIM1_CH1CVR = state.brightness;
     } else if (strncmp(cmd_buf, "text ", 5) == 0) {
         strncpy(state.text, cmd_buf + 5, 15);
         state.current = PATTERN_SCROLL_TEXT;
@@ -184,8 +184,8 @@ void process_cmd(void) {
 
 void __attribute__((interrupt))
 USART1_IRQHandler(void) {
-    if (USART1->STATR & (1 << 5)) {
-        uint8_t c = USART1->DATAR;
+    if (USART1_STATR & (1 << 5)) {
+        uint8_t c = USART1_DATAR;
         uart_putc(c);   // echo
         if (c == '\r' || c == '\n') {
             uart_putc('\n');
@@ -204,8 +204,8 @@ USART1_IRQHandler(void) {
 ```c
 void __attribute__((interrupt))
 EXTI7_0_IRQHandler(void) {
-    if (EXTI->INTFR & (1 << 7)) {
-        EXTI->INTFR = (1 << 7);
+    if (EXTI_INTFR & (1 << 7)) {
+        EXTI_INTFR = (1 << 7);
         state.current = (state.current + 1) % PATTERN_COUNT;
         memcpy((uint8_t*)active_pattern, patterns[state.current], 5);
     }
@@ -253,7 +253,7 @@ void load_state_from_flash(void) {
 
 ```c
 int main(void) {
-    SystemInit();
+    // HSI = 24 MHz بشكل افتراضي عند الإقلاع — لا حاجة لتهيئة هنا
     clock_48mhz();          // L05 من Clock Guide
 
     gpio_init_matrix();

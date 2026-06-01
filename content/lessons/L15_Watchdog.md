@@ -102,35 +102,33 @@ T = 3200 / 32000 = 0.1 s
 ## 4. الكود الأساسي
 
 ```c
-#include "ch32v003fun.h"
-
 void iwdg_init(uint16_t reload, uint8_t prescaler) {
     // 1) افتح للكتابة
-    IWDG->CTLR = 0x5555;
+    IWDG_CTLR = 0x5555;
 
     // 2) اضبط prescaler و reload
-    IWDG->PSCR = prescaler;
-    IWDG->RLDR = reload;
+    IWDG_PSCR = prescaler;
+    IWDG_RLDR = reload;
 
     // 3) أطعم مرة (Reload)
-    IWDG->CTLR = 0xAAAA;
+    IWDG_CTLR = 0xAAAA;
 
     // 4) ابدأ
-    IWDG->CTLR = 0xCCCC;
+    IWDG_CTLR = 0xCCCC;
 }
 
 static inline void iwdg_feed(void) {
-    IWDG->CTLR = 0xAAAA;
+    IWDG_CTLR = 0xAAAA;
 }
 
 int main(void) {
-    SystemInit();
+    // HSI = 24 MHz بشكل افتراضي عند الإقلاع — لا حاجة لتهيئة هنا
     iwdg_init(3999, 3);   // 1s timeout
 
     while (1) {
         do_work();
         iwdg_feed();      // إذا تأخر العمل، الـ MCU يعيد التشغيل
-        Delay_Ms(800);     // أقل من 1 ثانية
+        delay(800 * 8000);     // أقل من 1 ثانية
     }
 }
 ```
@@ -143,13 +141,13 @@ int main(void) {
 
 ```c
 int main(void) {
-    SystemInit();
+    // HSI = 24 MHz بشكل افتراضي عند الإقلاع — لا حاجة لتهيئة هنا
     led_init();
     iwdg_init(3999, 3);
 
-    GPIOC->BSHR = (1 << 1);    // LED ON عند الإقلاع
-    Delay_Ms(500);
-    GPIOC->BCR  = (1 << 1);    // LED OFF
+    GPIOC_BSHR = (1 << 1);    // LED ON عند الإقلاع
+    delay(500 * 8000);
+    GPIOC_BCR  = (1 << 1);    // LED OFF
 
     while (1);   // ← متعمدًا: تعطّل
     // النتيجة: IWDG يفجّر Reset بعد 1 ثانية
@@ -188,15 +186,15 @@ T_timeout = T_PCLK1 × 4096 × 2^WDGTB × (T[5:0] + 1)
 
 ```c
 void wwdg_init(void) {
-    RCC->APB1PCENR |= (1 << 11);                 // WWDG clock
-    WWDG->CFGR = (0x7F)                          // W = 0x7F (نافذة كاملة)
+    RCC_APB1PCENR |= (1 << 11);                 // WWDG clock
+    WWDG_CFGR = (0x7F)                          // W = 0x7F (نافذة كاملة)
                | (0b11 << 7);                    // WDGTB = /8
-    WWDG->CTLR = (1 << 7)                        // WDGA: enable
+    WWDG_CTLR = (1 << 7)                        // WDGA: enable
                | (0x7F);                         // T = counter
 }
 
 void wwdg_feed(void) {
-    WWDG->CTLR = (1 << 7) | (0x7F);
+    WWDG_CTLR = (1 << 7) | (0x7F);
 }
 ```
 
@@ -227,8 +225,8 @@ while (1) {
 ### حل: تجميد الـ Watchdog أثناء debug
 
 ```c
-DBGMCU->CTLR |= (1 << 0);    // DBG_IWDG_STOP
-DBGMCU->CTLR |= (1 << 1);    // DBG_WWDG_STOP
+DBGMCU_CTLR |= (1 << 0);    // DBG_IWDG_STOP
+DBGMCU_CTLR |= (1 << 1);    // DBG_WWDG_STOP
 ```
 
 > 📖 *RM, §4.2.2 "IWDG Debug Mode" — صفحة 26.*
@@ -249,9 +247,9 @@ DBGMCU->CTLR |= (1 << 1);    // DBG_WWDG_STOP
 | 31 | LPWRRSTF | Low-power reset |
 
 ```c
-if (RCC->RSTSCKR & (1 << 29)) {
+if (RCC_RSTSCKR & (1 << 29)) {
     log("Crash recovered by IWDG\n");
-    RCC->RSTSCKR |= (1 << 24);    // RMVF: امسح الأعلام
+    RCC_RSTSCKR |= (1 << 24);    // RMVF: امسح الأعلام
 }
 ```
 
@@ -266,7 +264,7 @@ if (RCC->RSTSCKR & (1 << 29)) {
 | الـ MCU يعيد التشغيل عشوائياً | RLDR صغير + مهام طويلة | كبّر RLDR أو أطعم أكثر |
 | لا أستطيع إيقاف IWDG | هذه ميزة وليست خطأ | reset كامل |
 | WWDG لا يعمل | نسيت ساعة APB1 + WDGA | تحقق |
-| Debug جلسة تتلف | لم تجمد الـ IWDG | `DBGMCU->CTLR` |
+| Debug جلسة تتلف | لم تجمد الـ IWDG | `DBGMCU_CTLR` |
 | الاستيقاظ من crash بسرعة لا يكتشف | RLDR كبير جداً | اضبط حسب أبطأ مهمة |
 | المفتاح الخطأ | استخدمت `0xAAAA` لتعديل PSCR | استخدم `0x5555` |
 

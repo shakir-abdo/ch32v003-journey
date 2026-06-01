@@ -94,14 +94,14 @@ Unlock → Erase Page → Wait → Program halfwords → Wait → Lock
 #define FLASH_KEY2  0xCDEF89ABU
 
 static void flash_unlock(void) {
-    if (FLASH->CTLR & (1 << 7)) {            // LOCK bit
-        FLASH->KEYR = FLASH_KEY1;
-        FLASH->KEYR = FLASH_KEY2;
+    if (FLASH_CTLR & (1 << 7)) {            // LOCK bit
+        FLASH_KEYR = FLASH_KEY1;
+        FLASH_KEYR = FLASH_KEY2;
     }
 }
 
 static void flash_lock(void) {
-    FLASH->CTLR |= (1 << 7);                  // re-lock
+    FLASH_CTLR |= (1 << 7);                  // re-lock
 }
 ```
 
@@ -112,12 +112,12 @@ static void flash_lock(void) {
 ```c
 static void flash_erase_page(uint32_t addr) {
     flash_unlock();
-    while (FLASH->STATR & (1 << 0));         // BSY
-    FLASH->CTLR |= (1 << 1);                  // PER (Page Erase)
-    FLASH->ADDR  = addr;
-    FLASH->CTLR |= (1 << 6);                  // STRT
-    while (FLASH->STATR & (1 << 0));         // wait BSY
-    FLASH->CTLR &= ~(1 << 1);                 // clear PER
+    while (FLASH_STATR & (1 << 0));         // BSY
+    FLASH_CTLR |= (1 << 1);                  // PER (Page Erase)
+    FLASH_ADDR  = addr;
+    FLASH_CTLR |= (1 << 6);                  // STRT
+    while (FLASH_STATR & (1 << 0));         // wait BSY
+    FLASH_CTLR &= ~(1 << 1);                 // clear PER
 }
 ```
 
@@ -130,11 +130,11 @@ static void flash_erase_page(uint32_t addr) {
 ```c
 static void flash_write_halfword(uint32_t addr, uint16_t data) {
     flash_unlock();
-    while (FLASH->STATR & (1 << 0));
-    FLASH->CTLR |= (1 << 0);                  // PG bit
+    while (FLASH_STATR & (1 << 0));
+    FLASH_CTLR |= (1 << 0);                  // PG bit
     *(volatile uint16_t *)addr = data;
-    while (FLASH->STATR & (1 << 0));
-    FLASH->CTLR &= ~(1 << 0);                 // clear PG
+    while (FLASH_STATR & (1 << 0));
+    FLASH_CTLR &= ~(1 << 0);                 // clear PG
 }
 ```
 
@@ -255,7 +255,7 @@ void update_firmware(void) {
         addr += 2;
     }
     // أعد التشغيل لتشغيل البرنامج الجديد
-    PFIC->CFGR = 0xFA050000 | (1 << 7);    // SYSRESET
+    PFIC_CFGR = 0xFA050000 | (1 << 7);    // SYSRESET
 }
 ```
 

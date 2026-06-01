@@ -138,7 +138,7 @@ Duty cycle (%) = CCRx / (ARR + 1) × 100
 ### العملية Bitwise لضبط PWM Mode 1 + Preload
 
 ```c
-TIM1->CHCTLR2 = (TIM1->CHCTLR2 & ~(0xFF << 8))      // امسح بتات القناة 4
+TIM1_CHCTLR2 = (TIM1_CHCTLR2 & ~(0xFF << 8))      // امسح بتات القناة 4
               | (0b110 << 12)                       // OC4M = PWM Mode 1
               | (1 << 11);                          // OC4PE = preload
 ```
@@ -156,40 +156,38 @@ TIM1->CHCTLR2 = (TIM1->CHCTLR2 & ~(0xFF << 8))      // امسح بتات الق�
 ## 6. الكود الكامل
 
 ```c
-#include "ch32v003fun.h"
-
 void pwm_pc4_init(void) {
     // 1) ساعات: GPIOC + TIM1 + AFIO
-    RCC->APB2PCENR |= RCC_APB2Periph_GPIOC | RCC_APB2Periph_TIM1 | RCC_APB2Periph_AFIO;
+    RCC_APB2PCENR |= (1u << 4)  /* IOPCEN */ | (1u << 11) /* TIM1EN */ | (1u << 0)  /* AFIOEN */;
 
     // 2) PC4 = Alternate Function Push-Pull, 50 MHz
-    GPIOC->CFGLR &= ~(0xF << (4 * 4));
-    GPIOC->CFGLR |=  (0b1011 << (4 * 4));   // CNF=10 (AF-PP), MODE=11 (50MHz)
+    GPIOC_CFGLR &= ~(0xF << (4 * 4));
+    GPIOC_CFGLR |=  (0b1011 << (4 * 4));   // CNF=10 (AF-PP), MODE=11 (50MHz)
 
     // 3) TIM1 base time: PSC=47 → 1 MHz tick
-    TIM1->PSC   = 48 - 1;
-    TIM1->ATRLR = 1000 - 1;       // ARR لـ 1 kHz
+    TIM1_PSC   = 48 - 1;
+    TIM1_ATRLR = 1000 - 1;       // ARR لـ 1 kHz
 
     // 4) Channel 4 PWM Mode 1 + Preload
-    TIM1->CHCTLR2 = (TIM1->CHCTLR2 & ~(0xFF << 8))
+    TIM1_CHCTLR2 = (TIM1_CHCTLR2 & ~(0xFF << 8))
                   | (0b110 << 12)            // OC4M = PWM Mode 1
                   | (1 << 11);               // OC4PE = preload
 
     // 5) Output enable للقناة 4 (بت 12 في CCER)
-    TIM1->CCER |= (1 << 12);                 // CC4E = 1
+    TIM1_CCER |= (1 << 12);                 // CC4E = 1
 
     // 6) Main Output Enable — مهم جداً لـ TIM1!
-    TIM1->BDTR |= (1 << 15);                 // MOE = 1
+    TIM1_BDTR |= (1 << 15);                 // MOE = 1
 
     // 7) Duty cycle 50%
-    TIM1->CH4CVR = 500;
+    TIM1_CH4CVR = 500;
 
     // 8) شغّل العدّاد
-    TIM1->CTLR1 |= (1 << 0);                 // CEN = 1
+    TIM1_CTLR1 |= (1 << 0);                 // CEN = 1
 }
 
 int main(void) {
-    SystemInit();
+    // HSI = 24 MHz بشكل افتراضي عند الإقلاع — لا حاجة لتهيئة هنا
     pwm_pc4_init();
     while (1) __asm__("wfi");
 }
@@ -207,7 +205,7 @@ void fade_loop(void) {
     uint16_t brightness = 0;
 
     while (1) {
-        TIM1->CH4CVR = brightness;
+        TIM1_CH4CVR = brightness;
         delay_ms(2);                 // SysTick من الدرس 06
         brightness += dir;
         if (brightness == 1000 || brightness == 0) dir = -dir;
@@ -223,34 +221,34 @@ void fade_loop(void) {
 
 ```c
 void input_capture_init(void) {
-    RCC->APB2PCENR |= RCC_APB2Periph_GPIOC | RCC_APB2Periph_TIM1 | RCC_APB2Periph_AFIO;
+    RCC_APB2PCENR |= (1u << 4)  /* IOPCEN */ | (1u << 11) /* TIM1EN */ | (1u << 0)  /* AFIOEN */;
 
     // PC4 = Input Floating (نستقبل إشارة خارجية)
-    GPIOC->CFGLR &= ~(0xF << (4*4));
-    GPIOC->CFGLR |=  (0b0100 << (4*4));   // CNF=01 (floating), MODE=00
+    GPIOC_CFGLR &= ~(0xF << (4*4));
+    GPIOC_CFGLR |=  (0b0100 << (4*4));   // CNF=01 (floating), MODE=00
 
-    TIM1->PSC = 48 - 1;        // 1 MHz tick = 1µs دقة
-    TIM1->ATRLR = 0xFFFF;       // أقصى حد
+    TIM1_PSC = 48 - 1;        // 1 MHz tick = 1µs دقة
+    TIM1_ATRLR = 0xFFFF;       // أقصى حد
 
     // إعداد القناة 4 كـ Input Capture على CC4S=01
     // (في CHCTLR2 بتات [9:8] = CC4S)
-    TIM1->CHCTLR2 = (TIM1->CHCTLR2 & ~(0x3 << 8)) | (0x1 << 8);
+    TIM1_CHCTLR2 = (TIM1_CHCTLR2 & ~(0x3 << 8)) | (0x1 << 8);
 
     // Rising edge polarity + enable (بت 13 = CC4P, بت 12 = CC4E)
-    TIM1->CCER &= ~(1 << 13);     // CC4P=0 → rising
-    TIM1->CCER |=  (1 << 12);     // CC4E=1
+    TIM1_CCER &= ~(1 << 13);     // CC4P=0 → rising
+    TIM1_CCER |=  (1 << 12);     // CC4E=1
 
-    TIM1->CTLR1 |= 1;             // CEN
+    TIM1_CTLR1 |= 1;             // CEN
 }
 
 uint32_t capture_period_us(void) {
-    while (!(TIM1->INTFR & (1 << 4)));     // انتظر CC4IF
-    uint32_t t1 = TIM1->CH4CVR;
-    TIM1->INTFR &= ~(1 << 4);
+    while (!(TIM1_INTFR & (1 << 4)));     // انتظر CC4IF
+    uint32_t t1 = TIM1_CH4CVR;
+    TIM1_INTFR &= ~(1 << 4);
 
-    while (!(TIM1->INTFR & (1 << 4)));
-    uint32_t t2 = TIM1->CH4CVR;
-    TIM1->INTFR &= ~(1 << 4);
+    while (!(TIM1_INTFR & (1 << 4)));
+    uint32_t t2 = TIM1_CH4CVR;
+    TIM1_INTFR &= ~(1 << 4);
 
     return (t2 - t1) & 0xFFFF;    // wraparound-safe
 }
@@ -277,12 +275,12 @@ uint32_t capture_period_us(void) {
 
 | العَرَض | السبب | الحل |
 |---------|------|------|
-| PWM لا يخرج رغم كل شيء صحيح | نسيت `BDTR.MOE = 1` على TIM1 | `TIM1->BDTR |= (1 << 15)` |
+| PWM لا يخرج رغم كل شيء صحيح | نسيت `BDTR.MOE = 1` على TIM1 | `TIM1_BDTR |= (1 << 15)` |
 | التردد غير المتوقع | نسيت `-1` على PSC أو ARR | تذكر `actual = N - 1` |
 | Duty cycle غير سلس | نسيت `OCxPE` (preload) | فعّله |
 | الإشارة على pin خاطئ | نسيت Remap | اضبط `AFIO_PCFR1` |
 | PWM mode 2 معكوس | اخترت `0b111` بالخطأ | استخدم `0b110` لـ PWM 1 |
-| مقاطعة تشتعل بلا توقف | لم تمسح `TIM1->INTFR` | امسح في ISR |
+| مقاطعة تشتعل بلا توقف | لم تمسح `TIM1_INTFR` | امسح في ISR |
 
 ---
 

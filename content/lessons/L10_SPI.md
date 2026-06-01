@@ -117,7 +117,7 @@ tags: ["spi", "master"]
 ## 4. شرح Bitwise — Master Mode 0, 8-bit, /16
 
 ```c
-SPI1->CTLR1 = (1 << 2)     // MSTR = master
+SPI1_CTLR1 = (1 << 2)     // MSTR = master
             | (0b011 << 3) // BR = /16 (3 MHz @ 48 MHz)
             | (1 << 8)     // SSI = high (لما SSM=1)
             | (1 << 9);    // SSM = software NSS
@@ -137,39 +137,37 @@ SPI1->CTLR1 = (1 << 2)     // MSTR = master
 ## 5. الكود الأساسي
 
 ```c
-#include "ch32v003fun.h"
-
 #define CS_PIN  3  // PC3 = Chip Select (Output)
 
 void spi_init(void) {
-    RCC->APB2PCENR |= RCC_APB2Periph_GPIOC | RCC_APB2Periph_SPI1 | RCC_APB2Periph_AFIO;
+    RCC_APB2PCENR |= (1u << 4)  /* IOPCEN */ | (1u << 12) /* SPI1EN */ | (1u << 0)  /* AFIOEN */;
 
     // PC5 (SCK), PC6 (MOSI) = AF Push-Pull
-    GPIOC->CFGLR &= ~((0xF << (4*5)) | (0xF << (4*6)));
-    GPIOC->CFGLR |=  ((0b1011 << (4*5)) | (0b1011 << (4*6)));
+    GPIOC_CFGLR &= ~((0xF << (4*5)) | (0xF << (4*6)));
+    GPIOC_CFGLR |=  ((0b1011 << (4*5)) | (0b1011 << (4*6)));
 
     // PC7 (MISO) = Input Floating
-    GPIOC->CFGLR &= ~(0xF << (4*7));
-    GPIOC->CFGLR |=  (0b0100 << (4*7));
+    GPIOC_CFGLR &= ~(0xF << (4*7));
+    GPIOC_CFGLR |=  (0b0100 << (4*7));
 
     // PC3 (CS) = Output, ابدأ HIGH
-    GPIOC->CFGLR &= ~(0xF << (4*CS_PIN));
-    GPIOC->CFGLR |=  (0x3 << (4*CS_PIN));
-    GPIOC->BSHR = (1 << CS_PIN);
+    GPIOC_CFGLR &= ~(0xF << (4*CS_PIN));
+    GPIOC_CFGLR |=  (0x3 << (4*CS_PIN));
+    GPIOC_BSHR = (1 << CS_PIN);
 
     // SPI master mode, /16, SW NSS
-    SPI1->CTLR1 = (1 << 2) | (0b011 << 3) | (1 << 8) | (1 << 9);
-    SPI1->CTLR1 |= (1 << 6);    // SPE: enable
+    SPI1_CTLR1 = (1 << 2) | (0b011 << 3) | (1 << 8) | (1 << 9);
+    SPI1_CTLR1 |= (1 << 6);    // SPE: enable
 }
 
-static inline void cs_low(void)  { GPIOC->BCR  = (1 << CS_PIN); }
-static inline void cs_high(void) { GPIOC->BSHR = (1 << CS_PIN); }
+static inline void cs_low(void)  { GPIOC_BCR  = (1 << CS_PIN); }
+static inline void cs_high(void) { GPIOC_BSHR = (1 << CS_PIN); }
 
 uint8_t spi_xfer(uint8_t b) {
-    while (!(SPI1->STATR & (1 << 1)));     // انتظر TXE
-    SPI1->DATAR = b;
-    while (!(SPI1->STATR & (1 << 0)));     // انتظر RXNE
-    return SPI1->DATAR;
+    while (!(SPI1_STATR & (1 << 1)));     // انتظر TXE
+    SPI1_DATAR = b;
+    while (!(SPI1_STATR & (1 << 0)));     // انتظر RXNE
+    return SPI1_DATAR;
 }
 
 uint8_t sensor_read_reg(uint8_t reg) {
@@ -198,7 +196,7 @@ uint8_t sensor_read_reg(uint8_t reg) {
 > ⚡ **مهم**: قبل رفع CS لإنهاء transaction، انتظر `BSY=0`:
 
 ```c
-while (SPI1->STATR & (1 << 7));   // wait BSY clear
+while (SPI1_STATR & (1 << 7));   // wait BSY clear
 cs_high();
 ```
 
@@ -220,7 +218,7 @@ void max7219_write(uint8_t reg, uint8_t data) {
     cs_low();
     spi_xfer(reg);
     spi_xfer(data);
-    while (SPI1->STATR & (1 << 7));
+    while (SPI1_STATR & (1 << 7));
     cs_high();
 }
 ```
@@ -245,7 +243,7 @@ void flash_read(uint32_t addr, uint8_t *buf, int len) {
 
 | العَرَض | السبب | الحل |
 |---------|------|------|
-| MOSI لا يخرج شيئاً | نسيت `SPE` | `SPI1->CTLR1 |= (1<<6)` |
+| MOSI لا يخرج شيئاً | نسيت `SPE` | `SPI1_CTLR1 |= (1<<6)` |
 | Master Fault Error | NSS lost | فعّل `SSM=1` و `SSI=1` |
 | البيانات معكوسة | اخترت `LSBFIRST` بالخطأ | تحقق |
 | Slave لا يستجيب | CPOL/CPHA خطأ | اقرأ datasheet للـ slave |
@@ -259,7 +257,7 @@ void flash_read(uint32_t addr, uint8_t *buf, int len) {
 
 ```c
 // سيُشرح في الدرس 13 — DMA
-SPI1->CTLR2 |= (1 << 1);   // TXDMAEN
+SPI1_CTLR2 |= (1 << 1);   // TXDMAEN
 ```
 
 ---

@@ -99,13 +99,20 @@ Row2 ────●──────●──────●──── LED 6
 ```
 
 ```c
-#include "ch32v003fun.h"
-
 // PC0..PC2 = صفوف (3 أطراف)
 // PD0..PD2 = أعمدة (3 أطراف)
 
-#define ROW_PORT GPIOC
-#define COL_PORT GPIOD
+typedef unsigned int u32;
+
+#define GPIOC_BASE  0x40011000
+#define GPIOC_CFGLR (*(volatile u32*)(GPIOC_BASE + 0x00))
+#define GPIOC_BSHR  (*(volatile u32*)(GPIOC_BASE + 0x10))
+#define GPIOC_BCR   (*(volatile u32*)(GPIOC_BASE + 0x14))
+
+#define GPIOD_BASE  0x40011400
+#define GPIOD_CFGLR (*(volatile u32*)(GPIOD_BASE + 0x00))
+#define GPIOD_BSHR  (*(volatile u32*)(GPIOD_BASE + 0x10))
+#define GPIOD_BCR   (*(volatile u32*)(GPIOD_BASE + 0x14))
 
 // نمط الإطار: كل صف = 3 بِتات (أعلى 5 بِتات مُهمَلة)
 const uint8_t frame[3] = {
@@ -115,37 +122,37 @@ const uint8_t frame[3] = {
 };
 
 void matrix_init(void) {
-    RCC->APB2PCENR |= RCC_APB2Periph_GPIOC | RCC_APB2Periph_GPIOD;
+    RCC_APB2PCENR |= (1u << 4)  /* IOPCEN */ | (1u << 5)  /* IOPDEN */;
 
     // PC0..PC2 = Output Push-Pull
     for (int p = 0; p <= 2; p++) {
-        ROW_PORT->CFGLR &= ~(0xF << (4 * p));
-        ROW_PORT->CFGLR |=  (0x3 << (4 * p));
+        GPIOC_CFGLR &= ~(0xF << (4 * p));
+        GPIOC_CFGLR |=  (0x3 << (4 * p));
     }
     // PD0..PD2 = Output Push-Pull
     for (int p = 0; p <= 2; p++) {
-        COL_PORT->CFGLR &= ~(0xF << (4 * p));
-        COL_PORT->CFGLR |=  (0x3 << (4 * p));
+        GPIOD_CFGLR &= ~(0xF << (4 * p));
+        GPIOD_CFGLR |=  (0x3 << (4 * p));
     }
 
     // ابدأ بكل شيء مطفأ: الصفوف LOW، الأعمدة HIGH
-    ROW_PORT->BCR  = 0b111;
-    COL_PORT->BSHR = 0b111;
+    GPIOC_BCR  = 0b111;
+    GPIOD_BSHR = 0b111;
 }
 
 static uint8_t current_row = 0;
 
 void matrix_scan_step(void) {
     // 1) أطفئ الصف السابق (BCR على كل بِتات الصف)
-    ROW_PORT->BCR = 0b111;
+    GPIOC_BCR = 0b111;
 
     // 2) اضبط الأعمدة حسب نمط الصف الجديد (LOW = LED ON)
     uint8_t cols = frame[current_row];
-    COL_PORT->BSHR = (~cols & 0b111);  // BSHR = bits to set HIGH (= LED OFF)
-    COL_PORT->BCR  = (cols  & 0b111);  // BCR  = bits to set LOW  (= LED ON)
+    GPIOD_BSHR = (~cols & 0b111);  // BSHR = bits to set HIGH (= LED OFF)
+    GPIOD_BCR  = (cols  & 0b111);  // BCR  = bits to set LOW  (= LED ON)
 
     // 3) شغّل الصف الجديد
-    ROW_PORT->BSHR = (1 << current_row);
+    GPIOC_BSHR = (1 << current_row);
 
     // 4) جهّز للصف التالي في الـ tick القادم
     current_row = (current_row + 1) % 3;
@@ -161,21 +168,21 @@ volatile uint32_t ticks = 0;
 
 void SysTick_Handler(void) __attribute__((interrupt));
 void SysTick_Handler(void) {
-    SysTick->SR = 0;
+    STK_SR = 0;
     ticks++;
     matrix_scan_step();   // كل 1ms = 333Hz refresh
 }
 
 void systick_init(void) {
-    SysTick->CTLR = 0;
-    SysTick->CNT  = 0;
-    SysTick->CMP  = 48000 - 1;   // 1ms @ 48MHz
-    SysTick->CTLR = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3);
-    NVIC_EnableIRQ(SysTicK_IRQn);
+    STK_CTLR = 0;
+    STK_CNT  = 0;
+    STK_CMP  = 48000 - 1;   // 1ms @ 48MHz
+    STK_CTLR = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3);
+    PFIC_IENR1 |= (1u << 12); /* SysTicK_IRQn = 12 */
 }
 
 int main(void) {
-    SystemInit();
+    // HSI = 24 MHz بشكل افتراضي عند الإقلاع — لا حاجة لتهيئة هنا
     matrix_init();
     systick_init();
     while (1) {
@@ -199,7 +206,7 @@ volatile uint8_t swap_request = 0;
 
 void SysTick_Handler(void) __attribute__((interrupt));
 void SysTick_Handler(void) {
-    SysTick->SR = 0;
+    STK_SR = 0;
 
     // عند بدء إطار جديد (current_row == 0)، انتقل للجديد إذا طُلب
     if (current_row == 0 && swap_request) {
@@ -227,8 +234,8 @@ void matrix_show(const uint8_t *new_frame) {
 ```c
 // زمن الصف 1ms = 48000 cycles. اعرض LED لـ 50% منها فقط:
 matrix_scan_step();
-Delay_Cycles(24000);
-COL_PORT->BSHR = 0b111;   // أطفئ كل الأعمدة قبل انتهاء الـ tick
+delay(24000 / 3);
+GPIOD_BSHR = 0b111;   // أطفئ كل الأعمدة قبل انتهاء الـ tick
 ```
 
 أو بشكل أنظف: SysTick بتردد أعلى (مثلاً 10kHz) + counter داخلي يحدّد متى يطفئ.
@@ -239,7 +246,7 @@ COL_PORT->BSHR = 0b111;   // أطفئ كل الأعمدة قبل انتهاء ا
 
 | العَرَض | السبب | الحل |
 |---------|------|-------|
-| كل الـ LEDs مُضاءة دائماً | لم تطفئ الصف السابق قبل تشغيل الجديد | `ROW_PORT->BCR = ...` أول شي |
+| كل الـ LEDs مُضاءة دائماً | لم تطفئ الصف السابق قبل تشغيل الجديد | `GPIOC_BCR = ...` أول شي |
 | flicker مرئي | تردد المسح < 60 Hz | قلّل زمن كل صف أو قلّل عدد الصفوف |
 | LEDs متقاطعة تشتعل (ghosting) | الـ pull-ups أو الـ leakage | استعمل push-pull وتأكّد من الأرضيات |
 | سطوع غير متجانس | بعض الصفوف مدّتها أطول | استعمل SysTick منتظم لا Delay |

@@ -80,7 +80,7 @@ int main(void) {
     printf("Booted!\n");
     while (1) {
         printf("Counter: %u\n", millis());
-        Delay_Ms(1000);
+        delay(1000 * 8000);
     }
 }
 ```
@@ -96,10 +96,10 @@ int main(void) {
 عندما يتعطّل النظام، لا تعرف **أين** توقّف. الحل: ضع LED toggle في نقاط مختلفة:
 
 ```c
-#define BREAD(N) do { GPIOC->OUTDR = (N); } while (0)
+#define BREAD(N) do { GPIOC_OUTDR = (N); } while (0)
 
 int main(void) {
-    SystemInit();
+    // HSI = 24 MHz بشكل افتراضي عند الإقلاع — لا حاجة لتهيئة هنا
     led_init_4bits();   // 4 LEDs على PC0-PC3
 
     BREAD(1); init_uart();
@@ -118,8 +118,8 @@ int main(void) {
 أدق طريقة لقياس توقيت:
 
 ```c
-#define DBG_HIGH()  GPIOC->BSHR = (1 << 0)
-#define DBG_LOW()   GPIOC->BCR  = (1 << 0)
+#define DBG_HIGH()  GPIOC_BSHR = (1 << 0)
+#define DBG_LOW()   GPIOC_BCR  = (1 << 0)
 
 void critical_function(void) {
     DBG_HIGH();
@@ -140,11 +140,11 @@ void critical_function(void) {
 
 ```c
 // أخرج SYSCLK على PC4
-RCC->CFGR0 = (RCC->CFGR0 & ~RCC_CFGR0_MCO) | (0b100 << 24);
+RCC_CFGR0 = (RCC_CFGR0 & ~RCC_CFGR0_MCO) | (0b100 << 24);
 
 // PC4 = AF Push-Pull
-GPIOC->CFGLR &= ~(0xF << (4*4));
-GPIOC->CFGLR |=  (0b1011 << (4*4));
+GPIOC_CFGLR &= ~(0xF << (4*4));
+GPIOC_CFGLR |=  (0b1011 << (4*4));
 ```
 
 اربط oscilloscope على PC4 وقس التردد:
@@ -164,7 +164,7 @@ GPIOC->CFGLR |=  (0b1011 << (4*4));
 __attribute__((interrupt))
 void HardFault_Handler(void) {
     // ضوّء كل الـ LEDs لتنبّه المستخدم بالـ crash
-    GPIOC->BSHR = 0xFF;
+    GPIOC_BSHR = 0xFF;
     while (1);
 }
 ```

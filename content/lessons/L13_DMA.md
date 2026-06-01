@@ -104,15 +104,15 @@ ADC ────► DMA ────► الذاكرة
 volatile uint16_t adc_buf[N_SAMPLES];
 
 void dma_adc_init(void) {
-    RCC->AHBPCENR |= (1 << 0);           // DMA1 clock
+    RCC_AHBPCENR |= (1 << 0);           // DMA1 clock
 
     // Channel 1 لقراءة ADC
-    DMA1_Channel1->CFGR = 0;             // disable + reset
-    DMA1_Channel1->PADDR = (uint32_t)&ADC1->RDATAR;
-    DMA1_Channel1->MADDR = (uint32_t)adc_buf;
-    DMA1_Channel1->CNTR  = N_SAMPLES;
+    DMA1_CH1_CFGR = 0;             // disable + reset
+    DMA1_CH1_PADDR = (uint32_t)&ADC1_RDATAR;
+    DMA1_CH1_MADDR = (uint32_t)adc_buf;
+    DMA1_CH1_CNTR  = N_SAMPLES;
 
-    DMA1_Channel1->CFGR = (0b01 << 8)    // PSIZE = 16-bit
+    DMA1_CH1_CFGR = (0b01 << 8)    // PSIZE = 16-bit
                         | (0b01 << 10)   // MSIZE = 16-bit
                         | (1 << 7)       // MINC: increment memory
                         | (1 << 5)       // CIRC: circular
@@ -121,17 +121,17 @@ void dma_adc_init(void) {
                         | (1 << 0);      // EN
 
     // فعّل ADC DMA mode
-    ADC1->CTLR2 |= (1 << 8);             // DMA bit
-    ADC1->CTLR2 |= (1 << 1);             // CONT
-    ADC1->CTLR2 |= (1 << 22);            // SWSTART
+    ADC1_CTLR2 |= (1 << 8);             // DMA bit
+    ADC1_CTLR2 |= (1 << 1);             // CONT
+    ADC1_CTLR2 |= (1 << 22);            // SWSTART
 
-    NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+    PFIC_IENR1 |= (1u << 22); /* DMA1_Channel1_IRQn = 22 */
 }
 
 __attribute__((interrupt))
 void DMA1_Channel1_IRQHandler(void) {
-    if (DMA1->INTFR & (1 << 1)) {        // TCIF1
-        DMA1->INTFCR = (1 << 1);          // مسح
+    if (DMA1_INTFR & (1 << 1)) {        // TCIF1
+        DMA1_INTFCR = (1 << 1);          // مسح
         // adc_buf الآن ممتلئ بـ 64 عينة
     }
 }
@@ -139,7 +139,7 @@ void DMA1_Channel1_IRQHandler(void) {
 
 **شرح**:
 
-1. `PADDR = &ADC1->RDATAR` — مصدر البيانات (سجل الـ ADC).
+1. `PADDR = &ADC1_RDATAR` — مصدر البيانات (سجل الـ ADC).
 2. `MADDR = adc_buf` — وجهة الذاكرة.
 3. `CNTR = 64` — عدد النقلات.
 4. `PSIZE = MSIZE = 01` (16-bit) لأن ADC يعطي 10-bit في 16-bit container.
@@ -153,18 +153,18 @@ void DMA1_Channel1_IRQHandler(void) {
 
 ```c
 void uart_send_dma(const char *buf, uint16_t len) {
-    DMA1_Channel4->CFGR = 0;
-    DMA1_Channel4->PADDR = (uint32_t)&USART1->DATAR;
-    DMA1_Channel4->MADDR = (uint32_t)buf;
-    DMA1_Channel4->CNTR  = len;
+    DMA1_CH4_CFGR = 0;
+    DMA1_CH4_PADDR = (uint32_t)&USART1_DATAR;
+    DMA1_CH4_MADDR = (uint32_t)buf;
+    DMA1_CH4_CNTR  = len;
 
-    DMA1_Channel4->CFGR = (0b00 << 8)   // PSIZE 8-bit
+    DMA1_CH4_CFGR = (0b00 << 8)   // PSIZE 8-bit
                         | (0b00 << 10)  // MSIZE 8-bit
                         | (1 << 7)      // MINC
                         | (1 << 4)      // DIR: memory→peripheral
                         | (1 << 0);     // EN
 
-    USART1->CTLR3 |= (1 << 7);          // DMAT enable
+    USART1_CTLR3 |= (1 << 7);          // DMAT enable
 }
 ```
 
@@ -193,7 +193,7 @@ Memory= char        →  MSIZE = 00
 ## 6. Circular Mode — Ring buffer عتادي
 
 ```c
-DMA1_Channel1->CFGR |= (1 << 5);     // CIRC
+DMA1_CH1_CFGR |= (1 << 5);     // CIRC
 ```
 
 بدلاً من التوقف عند انتهاء `CNTR`، يعيد العدّاد إلى القيمة الأصلية ويواصل. مفيد لـ:
@@ -204,7 +204,7 @@ DMA1_Channel1->CFGR |= (1 << 5);     // CIRC
 استخدم `CNTR` نفسه لمعرفة الموقع الحالي:
 
 ```c
-uint32_t pos = N_SAMPLES - DMA1_Channel1->CNTR;
+uint32_t pos = N_SAMPLES - DMA1_CH1_CNTR;
 ```
 
 ---
@@ -238,13 +238,13 @@ void process(uint16_t *ptr, int len) { /* ... */ }
 
 __attribute__((interrupt))
 void DMA1_Channel1_IRQHandler(void) {
-    uint32_t flags = DMA1->INTFR;
+    uint32_t flags = DMA1_INTFR;
     if (flags & (1 << 2)) {                   // HTIF1: نصف ممتلئ
-        DMA1->INTFCR = (1 << 2);
+        DMA1_INTFCR = (1 << 2);
         process(&buf[0], BUF_SIZE/2);          // عالج النصف الأول
     }
     if (flags & (1 << 1)) {                   // TCIF1: ممتلئ
-        DMA1->INTFCR = (1 << 1);
+        DMA1_INTFCR = (1 << 1);
         process(&buf[BUF_SIZE/2], BUF_SIZE/2); // عالج النصف الثاني
     }
 }

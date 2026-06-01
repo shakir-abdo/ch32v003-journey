@@ -87,10 +87,10 @@ tags: ["rcc", "clock", "pll"]
 
 ```c
 // تفعيل HSI (افتراضي شغّال، لكن للوضوح)
-RCC->CTLR |= RCC_HSION;
+RCC_CTLR |= (1u << 0)  /* HSI on */;
 
 // الانتظار حتى يستقر
-while ((RCC->CTLR & RCC_HSIRDY) == 0);
+while ((RCC_CTLR & (1u << 1)  /* HSI ready */) == 0);
 ```
 
 ### الخطوة 2: اختر مصدر PLL **قبل** تفعيله
@@ -99,8 +99,8 @@ while ((RCC->CTLR & RCC_HSIRDY) == 0);
 
 ```c
 // مسح بت PLLSRC ثم ضبط HSI كمصدر للـ PLL
-RCC->CFGR0 &= ~RCC_PLLSRC;     // 0 = HSI as PLL source
-// إذا أردت HSE: RCC->CFGR0 |= RCC_PLLSRC;
+RCC_CFGR0 &= ~(1u << 16) /* PLL src bit */;     // 0 = HSI as PLL source
+// إذا أردت HSE: RCC_CFGR0 |= (1u << 16) /* PLL src bit */;
 ```
 
 > 💡 ملاحظة عن HSI/2: في عائلات WCH أخرى (CH32V103, CH32V20x) يوجد بت `HSIPRE` يقسم HSI/2 قبل PLL.
@@ -109,8 +109,8 @@ RCC->CFGR0 &= ~RCC_PLLSRC;     // 0 = HSI as PLL source
 ### الخطوة 3: شغّل PLL وانتظر استقراره
 
 ```c
-RCC->CTLR |= RCC_PLLON;
-while ((RCC->CTLR & RCC_PLLRDY) == 0);
+RCC_CTLR |= (1u << 24) /* PLL on */;
+while ((RCC_CTLR & (1u << 25) /* PLL ready */) == 0);
 ```
 
 ### الخطوة 4: ضبط ذاكرة الفلاش (Latency)
@@ -120,7 +120,7 @@ while ((RCC->CTLR & RCC_PLLRDY) == 0);
 عند 48 MHz يجب إضافة Wait-State على الـ Flash:
 
 ```c
-FLASH->ACTLR = (FLASH->ACTLR & ~FLASH_ACTLR_LATENCY) | FLASH_ACTLR_LATENCY_1;
+FLASH_ACTLR = (FLASH_ACTLR & ~(0x3u << 0)) | (0x1u << 0);
 // LATENCY = 1 → wait state واحد للسرعات > 24 MHz
 ```
 
@@ -128,10 +128,10 @@ FLASH->ACTLR = (FLASH->ACTLR & ~FLASH_ACTLR_LATENCY) | FLASH_ACTLR_LATENCY_1;
 
 ```c
 // مسح حقل SW ثم اختيار PLL
-RCC->CFGR0 = (RCC->CFGR0 & ~RCC_SW) | RCC_SW_PLL;
+RCC_CFGR0 = (RCC_CFGR0 & ~(0x3u << 0)  /* SW field */) | (0x2u << 0)  /* SW=PLL */;
 
 // انتظار التأكيد من العتاد عبر SWS (للقراءة فقط)
-while ((RCC->CFGR0 & RCC_SWS) != RCC_SWS_PLL);
+while ((RCC_CFGR0 & (0x3u << 2)  /* SWS field */) != (0x2u << 2)  /* SWS=PLL */);
 ```
 
 > 🔍 الفرق بين `SW` و `SWS`:
@@ -194,7 +194,7 @@ SYSCLK ──► HPRE ──► HCLK (CPU + AHB)
 مثال: تفعيل ساعة GPIOC (للـ LED):
 
 ```c
-RCC->APB2PCENR |= RCC_APB2Periph_GPIOC;
+RCC_APB2PCENR |= (1u << 4)  /* IOPCEN */;
 ```
 
 ---
@@ -204,7 +204,7 @@ RCC->APB2PCENR |= RCC_APB2Periph_GPIOC;
 ميزة مهمة لمن يستخدم HSE: إذا فشل الكريستال (انكسر، فقد التوصيل…)، يتحوّل النظام تلقائياً إلى HSI ويُرفع `CSSF`:
 
 ```c
-RCC->CTLR |= RCC_CSSON;   // تفعيل المراقبة (بعد HSE Ready)
+RCC_CTLR |= (1u << 19);   // تفعيل المراقبة (بعد HSE Ready)
 ```
 
 ---
@@ -214,7 +214,7 @@ RCC->CTLR |= RCC_CSSON;   // تفعيل المراقبة (بعد HSE Ready)
 تستطيع إخراج إشارة الساعة على دبوس `PC4` للتأكد من أنك حصلت على التردد الصحيح:
 
 ```c
-RCC->CFGR0 = (RCC->CFGR0 & ~RCC_CFGR0_MCO) | RCC_CFGR0_MCO_SYSCLK;
+RCC_CFGR0 = (RCC_CFGR0 & ~RCC_CFGR0_MCO) | RCC_CFGR0_MCO_SYSCLK;
 // 100: SYSCLK | 101: HSI | 110: HSE | 111: PLL
 ```
 
@@ -247,25 +247,25 @@ RCC->CFGR0 = (RCC->CFGR0 & ~RCC_CFGR0_MCO) | RCC_CFGR0_MCO_SYSCLK;
 ```c
 void SystemClock_48MHz_Init(void) {
     // 1) HSI ON + Ready
-    RCC->CTLR |= RCC_HSION;
-    while (!(RCC->CTLR & RCC_HSIRDY));
+    RCC_CTLR |= (1u << 0)  /* HSI on */;
+    while (!(RCC_CTLR & (1u << 1)  /* HSI ready */));
 
     // 2) اختيار مصدر PLL = HSI
-    RCC->CFGR0 &= ~RCC_PLLSRC;
+    RCC_CFGR0 &= ~(1u << 16) /* PLL src bit */;
 
     // 3) PLL ON + Ready
-    RCC->CTLR |= RCC_PLLON;
-    while (!(RCC->CTLR & RCC_PLLRDY));
+    RCC_CTLR |= (1u << 24) /* PLL on */;
+    while (!(RCC_CTLR & (1u << 25) /* PLL ready */));
 
     // 4) Flash latency = 1 wait state للسرعات > 24 MHz
-    FLASH->ACTLR = (FLASH->ACTLR & ~FLASH_ACTLR_LATENCY) | FLASH_ACTLR_LATENCY_1;
+    FLASH_ACTLR = (FLASH_ACTLR & ~(0x3u << 0)) | (0x1u << 0);
 
     // 5) HPRE = ÷1 (نريد الأداء الكامل)
-    RCC->CFGR0 &= ~RCC_HPRE;
+    RCC_CFGR0 &= ~(0xFu << 4)  /* HPRE field */;
 
     // 6) تحويل SYSCLK إلى PLL
-    RCC->CFGR0 = (RCC->CFGR0 & ~RCC_SW) | RCC_SW_PLL;
-    while ((RCC->CFGR0 & RCC_SWS) != RCC_SWS_PLL);
+    RCC_CFGR0 = (RCC_CFGR0 & ~(0x3u << 0)  /* SW field */) | (0x2u << 0)  /* SW=PLL */;
+    while ((RCC_CFGR0 & (0x3u << 2)  /* SWS field */) != (0x2u << 2)  /* SWS=PLL */);
 }
 ```
 

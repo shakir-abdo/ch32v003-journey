@@ -61,7 +61,7 @@ await fetch('0x40011014', { method: 'POST', body: 0b0010 });
 
 ---
 
-## ٣. لماذا نكتب `GPIOC->BSHR` بدل `0x40011010`؟
+## ٣. لماذا نكتب `GPIOC_BSHR` بدل `0x40011010`؟
 
 لأن لا أحد يريد أن يحفظ أرقام! 🫠
 
@@ -86,7 +86,7 @@ typedef struct {
 فلما تكتب:
 
 ```c
-GPIOC->BSHR = (1 << 1);
+GPIOC_BSHR = (1 << 1);
 ```
 
 هو نفس الشيء بالضبط:
@@ -95,7 +95,7 @@ GPIOC->BSHR = (1 << 1);
 *(volatile uint32_t *)0x40011010 = (1 << 1);
 ```
 
-لكنّ `GPIOC->BSHR` أسهل وأوضح! ✨
+لكنّ `GPIOC_BSHR` أسهل وأوضح! ✨
 
 > 💡 **لماذا `volatile` مهم؟** بدون `volatile` المُترجم (compiler) قد يحذف القراءة/الكتابة لأنها "تبدو بلا فائدة". مع `volatile` يجبره أن ينفذ كل عملية بالضبط كما كُتبت.
 
@@ -134,9 +134,9 @@ GPIOC->BSHR = (1 << 1);
 
 ```c
 // تفعيل GPIOC:
-RCC->APB2PCENR |= (1 << 4);
+RCC_APB2PCENR |= (1 << 4);
 // أو الأنظف:
-RCC->APB2PCENR |= RCC_APB2Periph_GPIOC;
+RCC_APB2PCENR |= (1u << 4)  /* IOPCEN */;
 ```
 
 ---
@@ -187,10 +187,10 @@ PC3 = bits 12-15      PC7 = bits 28-31
 
 ```c
 // ❌ خطأ — يمسح كل شيء:
-RCC->APB2PCENR = RCC_APB2Periph_GPIOC;
+RCC_APB2PCENR = (1u << 4)  /* IOPCEN */;
 
 // ✅ صحيح — يضيف للقائمة:
-RCC->APB2PCENR |= RCC_APB2Periph_GPIOC;
+RCC_APB2PCENR |= (1u << 4)  /* IOPCEN */;
 ```
 
 > 🧠 القاعدة الذهبية: `x |= y` ≡ `x = x | y` ≡ "خذ القديم + أضف عليه".
@@ -203,7 +203,7 @@ RCC->APB2PCENR |= RCC_APB2Periph_GPIOC;
 ```
 
 ```c
-GPIOC->CFGLR &= ~(0xF << (4 * 1));
+GPIOC_CFGLR &= ~(0xF << (4 * 1));
 //                 ↑       ↑
 //                 │       │
 //                 │       └─ انقلهم لموقع PC1 (يبدأ من بت 4)
@@ -217,7 +217,7 @@ GPIOC->CFGLR &= ~(0xF << (4 * 1));
 ### `^` (XOR) و `^=` — اقلب الحالة (Toggle)
 
 ```c
-GPIOC->OUTDR ^= (1 << 1);   // إذا كان PC1=1 يصير 0، والعكس
+GPIOC_OUTDR ^= (1 << 1);   // إذا كان PC1=1 يصير 0، والعكس
 ```
 
 > ⚠️ **تحذير**: التطبيق على `OUTDR` غير ذرّي (read-modify-write). للـ toggle الذرّي، استخدم `BSHR` و `BCR` بحالة معروفة.
@@ -240,23 +240,21 @@ GPIOC->OUTDR ^= (1 << 1);   // إذا كان PC1=1 يصير 0، والعكس
 ## ٨. الكود العملي — Task 1.1: Blink LED
 
 ```c
-#include "ch32v003fun.h"
-
 int main(void) {
-    SystemInit();
+    // HSI = 24 MHz بشكل افتراضي عند الإقلاع — لا حاجة لتهيئة هنا
 
     // 1. شغّل طبلون GPIOC
-    RCC->APB2PCENR |= RCC_APB2Periph_GPIOC;
+    RCC_APB2PCENR |= (1u << 4)  /* IOPCEN */;
 
     // 2. اضبط PC1 = output push-pull 50MHz
-    GPIOC->CFGLR &= ~(0xF << (4 * 1));     // امسح PC1
-    GPIOC->CFGLR |=  (0b0011 << (4 * 1));  // 50MHz push-pull
+    GPIOC_CFGLR &= ~(0xF << (4 * 1));     // امسح PC1
+    GPIOC_CFGLR |=  (0b0011 << (4 * 1));  // 50MHz push-pull
 
     while (1) {
-        GPIOC->BSHR = (1 << 1);     // شغّل PC1
-        Delay_Ms(500);
-        GPIOC->BCR  = (1 << 1);     // طفّي PC1
-        Delay_Ms(500);
+        GPIOC_BSHR = (1 << 1);     // شغّل PC1
+        delay(500 * 8000);
+        GPIOC_BCR  = (1 << 1);     // طفّي PC1
+        delay(500 * 8000);
     }
 }
 ```
@@ -270,7 +268,7 @@ int main(void) {
 2. لماذا استخدمنا `|=` مع `APB2PCENR` وليس `=` فقط؟
 3. لماذا `CFGLR` نمسحه أولاً بـ `&= ~(…)` ثمّ نكتب بـ `|=`؟
 4. ما الفرق بين `BSHR = (1<<1)` و `OUTDR |= (1<<1)`؟ متى يهم؟ (Hint: interrupts).
-5. إذا كتبنا `GPIOC->BSHR = (1<<1) | (1<<17);` — ماذا يحدث؟ (نفس الـ pin يطلب SET و RESET).
+5. إذا كتبنا `GPIOC_BSHR = (1<<1) | (1<<17);` — ماذا يحدث؟ (نفس الـ pin يطلب SET و RESET).
 
 ---
 

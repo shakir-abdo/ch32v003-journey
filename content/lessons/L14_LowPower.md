@@ -91,11 +91,9 @@ tags: ["power", "sleep", "standby"]
 ## 3. Sleep Mode — أبسط
 
 ```c
-#include "ch32v003fun.h"
-
 void enter_sleep(void) {
     // امسح SLEEPDEEP
-    PFIC->SCTLR &= ~(1 << 2);
+    PFIC_SCTLR &= ~(1 << 2);
     __asm__ volatile ("wfi");
 }
 ```
@@ -111,11 +109,11 @@ void enter_sleep(void) {
 ```c
 void enter_standby(void) {
     // 1) فعّل PDDS
-    PWR->CTLR |= (1 << 1);         // PDDS = 1 → Standby
-    PWR->CTLR |= (1 << 2);         // CWUF: clear wakeup flag
+    PWR_CTLR |= (1 << 1);         // PDDS = 1 → Standby
+    PWR_CTLR |= (1 << 2);         // CWUF: clear wakeup flag
 
     // 2) SLEEPDEEP في core
-    PFIC->SCTLR |= (1 << 2);
+    PFIC_SCTLR |= (1 << 2);
 
     // 3) نوم
     __asm__ volatile ("wfi");
@@ -127,9 +125,9 @@ void enter_standby(void) {
 ### كيفية معرفة أن الاستيقاظ كان من Standby
 
 ```c
-if (PWR->CSR & (1 << 1)) {      // SBF
+if (PWR_CSR & (1 << 1)) {      // SBF
     // استيقظنا من Standby
-    PWR->CTLR |= (1 << 3);       // CSBF
+    PWR_CTLR |= (1 << 3);       // CSBF
 }
 ```
 
@@ -142,20 +140,20 @@ if (PWR->CSR & (1 << 1)) {      // SBF
 
 void wakeup_button_init(void) {
     // PC2 = Input Pull-Up + EXTI Falling
-    RCC->APB2PCENR |= RCC_APB2Periph_GPIOC | RCC_APB2Periph_AFIO;
-    GPIOC->CFGLR &= ~(0xF << (4*2));
-    GPIOC->CFGLR |=  (0x8 << (4*2));
-    GPIOC->OUTDR |=  (1 << 2);
+    RCC_APB2PCENR |= (1u << 4)  /* IOPCEN */ | (1u << 0)  /* AFIOEN */;
+    GPIOC_CFGLR &= ~(0xF << (4*2));
+    GPIOC_CFGLR |=  (0x8 << (4*2));
+    GPIOC_OUTDR |=  (1 << 2);
 
-    AFIO->EXTICR = (AFIO->EXTICR & ~(0x3 << 4)) | (0x2 << 4);   // PC
-    EXTI->INTENR |= (1 << 2);
-    EXTI->FTENR  |= (1 << 2);
-    NVIC_EnableIRQ(EXTI7_0_IRQn);
+    AFIO_EXTICR = (AFIO_EXTICR & ~(0x3 << 4)) | (0x2 << 4);   // PC
+    EXTI_INTENR |= (1 << 2);
+    EXTI_FTENR  |= (1 << 2);
+    PFIC_IENR1 |= (1u << 20); /* EXTI7_0_IRQn = 20 */
 }
 
 __attribute__((interrupt))
 void EXTI7_0_IRQHandler(void) {
-    EXTI->INTFR = (1 << 2);
+    EXTI_INTFR = (1 << 2);
     // الـ CPU استيقظ تلقائياً، نصبح هنا
 }
 ```
@@ -204,26 +202,26 @@ AWUWR    = 124    →  (124+1) × 1024 / 128000 ≈ 1.0 s
 ```c
 void awu_init_1s(void) {
     // فعّل LSI (مصدر AWU)
-    RCC->RSTSCKR |= (1 << 0);                 // LSION
-    while (!(RCC->RSTSCKR & (1 << 1)));      // wait LSIRDY
+    RCC_RSTSCKR |= (1 << 0);                 // LSION
+    while (!(RCC_RSTSCKR & (1 << 1)));      // wait LSIRDY
 
-    RCC->APB1PCENR |= (1 << 28);              // PWR clock
+    RCC_APB1PCENR |= (1 << 28);              // PWR clock
 
     // فعّل AWU
-    PWR->AWUPSC = 0b1011;                      // /1024
-    PWR->AWUWR  = 124;                         // ≈ 1 s
-    PWR->AWUCSR = (1 << 1);                    // AWUEN
+    PWR_AWUPSC = 0b1011;                      // /1024
+    PWR_AWUWR  = 124;                         // ≈ 1 s
+    PWR_AWUCSR = (1 << 1);                    // AWUEN
 
     // EXTI Line 9 (داخلية لـ AWU)
-    EXTI->INTENR |= (1 << 9);
-    EXTI->RTENR  |= (1 << 9);
+    EXTI_INTENR |= (1 << 9);
+    EXTI_RTENR  |= (1 << 9);
 
-    NVIC_EnableIRQ(AWU_IRQn);    // أو PWR_IRQn حسب الـ HAL
+    PFIC_IENR1 |= (1u << 21); /* AWU_IRQn = 21 */    // أو PWR_IRQn حسب الـ HAL
 }
 
 __attribute__((interrupt))
 void AWU_IRQHandler(void) {
-    EXTI->INTFR = (1 << 9);
+    EXTI_INTFR = (1 << 9);
     // نفّذ مهمتك ثم عُد للنوم
 }
 ```
@@ -234,15 +232,15 @@ void AWU_IRQHandler(void) {
 
 ```c
 int main(void) {
-    SystemInit();
+    // HSI = 24 MHz بشكل افتراضي عند الإقلاع — لا حاجة لتهيئة هنا
     awu_init_1s();
     led_init();
 
     while (1) {
         // عمل سريع
-        GPIOC->BSHR = (1 << 1);
-        Delay_Us(100);
-        GPIOC->BCR  = (1 << 1);
+        GPIOC_BSHR = (1 << 1);
+        delay(100 * 8);
+        GPIOC_BCR  = (1 << 1);
 
         // نَم حتى الاستيقاظ التالي
         enter_standby();
@@ -260,10 +258,10 @@ int main(void) {
 يخبرك إذا VDD انخفض تحت حد معيّن:
 
 ```c
-PWR->CTLR &= ~(0x7 << 5);
-PWR->CTLR |= (0b101 << 5);    // PLS = 2.8V threshold
-PWR->CTLR |= (1 << 4);        // PVDE
-EXTI->INTENR |= (1 << 16);    // EXTI line 16 = PVD
+PWR_CTLR &= ~(0x7 << 5);
+PWR_CTLR |= (0b101 << 5);    // PLS = 2.8V threshold
+PWR_CTLR |= (1 << 4);        // PVDE
+EXTI_INTENR |= (1 << 16);    // EXTI line 16 = PVD
 ```
 
 مفيد لـ:

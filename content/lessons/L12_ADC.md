@@ -91,28 +91,28 @@ V_in = (raw / 1023) × VDD
 
 ```c
 // 1) تفعيل ساعة ADC
-RCC->APB2PCENR |= RCC_APB2Periph_ADC1;
+RCC_APB2PCENR |= (1u << 9)  /* ADC1EN */;
 
 // 2) PC4 كـ Analog Input
-GPIOC->CFGLR &= ~(0xF << (4*4));    // امسح (يصبح CNF=00, MODE=00 = Analog ✅)
+GPIOC_CFGLR &= ~(0xF << (4*4));    // امسح (يصبح CNF=00, MODE=00 = Analog ✅)
 
 // 3) Sample time للـ CH2 — 3 بتات في SAMPTR2 موقع [8:6]
-ADC1->SAMPTR2 &= ~(0x7 << 6);
-ADC1->SAMPTR2 |= (0b111 << 6);       // 241 cycles (الأبطأ والأدق)
+ADC1_SAMPTR2 &= ~(0x7 << 6);
+ADC1_SAMPTR2 |= (0b111 << 6);       // 241 cycles (الأبطأ والأدق)
 
 // 4) Regular sequence: قناة واحدة فقط = CH2
-ADC1->RSQR1 &= ~(0xF << 20);         // L[3:0] = 0 (length = 1)
-ADC1->RSQR3 &= ~(0x1F);
-ADC1->RSQR3 |= 2;                    // first conversion = CH2
+ADC1_RSQR1 &= ~(0xF << 20);         // L[3:0] = 0 (length = 1)
+ADC1_RSQR3 &= ~(0x1F);
+ADC1_RSQR3 |= 2;                    // first conversion = CH2
 
 // 5) ADON: قم بتشغيله
-ADC1->CTLR2 |= (1 << 0);
+ADC1_CTLR2 |= (1 << 0);
 
 // 6) Calibration
-ADC1->CTLR2 |= (1 << 3);            // RSTCAL
-while (ADC1->CTLR2 & (1 << 3));
-ADC1->CTLR2 |= (1 << 2);            // CAL
-while (ADC1->CTLR2 & (1 << 2));
+ADC1_CTLR2 |= (1 << 3);            // RSTCAL
+while (ADC1_CTLR2 & (1 << 3));
+ADC1_CTLR2 |= (1 << 2);            // CAL
+while (ADC1_CTLR2 & (1 << 2));
 ```
 
 **شرح التفاصيل**:
@@ -128,40 +128,38 @@ while (ADC1->CTLR2 & (1 << 2));
 ## 4. الكود الكامل — قراءة واحدة
 
 ```c
-#include "ch32v003fun.h"
-
 void adc_init_ch2(void) {
-    RCC->APB2PCENR |= RCC_APB2Periph_GPIOC | RCC_APB2Periph_ADC1;
+    RCC_APB2PCENR |= (1u << 4)  /* IOPCEN */ | (1u << 9)  /* ADC1EN */;
 
     // PC4 = Analog
-    GPIOC->CFGLR &= ~(0xF << (4 * 4));
+    GPIOC_CFGLR &= ~(0xF << (4 * 4));
 
     // Sample time للـ CH2
-    ADC1->SAMPTR2 &= ~(0x7 << 6);
-    ADC1->SAMPTR2 |= (0b111 << 6);    // 241 cycles
+    ADC1_SAMPTR2 &= ~(0x7 << 6);
+    ADC1_SAMPTR2 |= (0b111 << 6);    // 241 cycles
 
     // Sequence: قناة واحدة = CH2
-    ADC1->RSQR1 = 0;
-    ADC1->RSQR3 = 2;
+    ADC1_RSQR1 = 0;
+    ADC1_RSQR3 = 2;
 
     // ADC ON
-    ADC1->CTLR2 = (1 << 0);
+    ADC1_CTLR2 = (1 << 0);
 
     // Calibrate
-    ADC1->CTLR2 |= (1 << 3);
-    while (ADC1->CTLR2 & (1 << 3));
-    ADC1->CTLR2 |= (1 << 2);
-    while (ADC1->CTLR2 & (1 << 2));
+    ADC1_CTLR2 |= (1 << 3);
+    while (ADC1_CTLR2 & (1 << 3));
+    ADC1_CTLR2 |= (1 << 2);
+    while (ADC1_CTLR2 & (1 << 2));
 }
 
 uint16_t adc_read(void) {
-    ADC1->CTLR2 |= (1 << 22);           // SWSTART
-    while (!(ADC1->STATR & (1 << 1))); // EOC
-    return ADC1->RDATAR;
+    ADC1_CTLR2 |= (1 << 22);           // SWSTART
+    while (!(ADC1_STATR & (1 << 1))); // EOC
+    return ADC1_RDATAR;
 }
 
 int main(void) {
-    SystemInit();
+    // HSI = 24 MHz بشكل افتراضي عند الإقلاع — لا حاجة لتهيئة هنا
     uart_init(115200);                  // من الدرس 09
     adc_init_ch2();
 
@@ -169,7 +167,7 @@ int main(void) {
         uint16_t v = adc_read();
         uint32_t mv = v * 3300UL / 1023;
         printf("ADC=%4u  mV=%4u\n", v, (unsigned)mv);
-        Delay_Ms(200);
+        delay(200 * 8000);
     }
 }
 ```
@@ -180,19 +178,19 @@ int main(void) {
 
 ```c
 void adc_temp_init(void) {
-    RCC->APB2PCENR |= RCC_APB2Periph_ADC1;
+    RCC_APB2PCENR |= (1u << 9)  /* ADC1EN */;
 
     // فعّل الـ Temp Sensor + Vref الداخلي
-    ADC1->CTLR2 |= (1 << 23);          // TSVREFE
+    ADC1_CTLR2 |= (1 << 23);          // TSVREFE
 
     // Sample time للـ CH9 (في SAMPTR2[29:27])
-    ADC1->SAMPTR2 &= ~(0x7 << 27);
-    ADC1->SAMPTR2 |= (0b111 << 27);
+    ADC1_SAMPTR2 &= ~(0x7 << 27);
+    ADC1_SAMPTR2 |= (0b111 << 27);
 
-    ADC1->RSQR1 = 0;
-    ADC1->RSQR3 = 9;
+    ADC1_RSQR1 = 0;
+    ADC1_RSQR3 = 9;
 
-    ADC1->CTLR2 |= (1 << 0);
+    ADC1_CTLR2 |= (1 << 0);
     // calibration كما السابق
 }
 
@@ -214,12 +212,12 @@ int32_t temp_celsius(uint16_t raw) {
 
 ```c
 // Sequence: CH0, CH2, CH9 (3 قنوات)
-ADC1->RSQR1 = (2 << 20);    // L=2 (length = 3)
-ADC1->RSQR3 = (0 << 0)      // SQ1 = CH0
+ADC1_RSQR1 = (2 << 20);    // L=2 (length = 3)
+ADC1_RSQR3 = (0 << 0)      // SQ1 = CH0
             | (2 << 5)      // SQ2 = CH2
             | (9 << 10);    // SQ3 = CH9
 
-ADC1->CTLR1 |= (1 << 8);    // SCAN mode
+ADC1_CTLR1 |= (1 << 8);    // SCAN mode
 ```
 
 ثم اقرأ بعد كل تحويل (سيُحدّث `RDATAR` تباعاً). الأنظف: استخدم DMA (الدرس 13) لجمعها في array تلقائياً.
@@ -229,11 +227,11 @@ ADC1->CTLR1 |= (1 << 8);    // SCAN mode
 ## 7. Continuous Mode + EOC Interrupt
 
 ```c
-ADC1->CTLR2 |= (1 << 1);       // CONT = continuous
-ADC1->CTLR1 |= (1 << 5);       // EOCIE
-NVIC_EnableIRQ(ADC_IRQn);
+ADC1_CTLR2 |= (1 << 1);       // CONT = continuous
+ADC1_CTLR1 |= (1 << 5);       // EOCIE
+PFIC_IENR1 |= (1u << 26); /* ADC_IRQn = 26 */
 
-ADC1->CTLR2 |= (1 << 22);      // SWSTART (مرة واحدة فقط)
+ADC1_CTLR2 |= (1 << 22);      // SWSTART (مرة واحدة فقط)
 ```
 
 ```c
@@ -241,8 +239,8 @@ volatile uint16_t latest_adc = 0;
 
 __attribute__((interrupt))
 void ADC1_IRQHandler(void) {
-    if (ADC1->STATR & (1 << 1)) {
-        latest_adc = ADC1->RDATAR;     // قراءة تمسح EOC
+    if (ADC1_STATR & (1 << 1)) {
+        latest_adc = ADC1_RDATAR;     // قراءة تمسح EOC
     }
 }
 ```
@@ -252,9 +250,9 @@ void ADC1_IRQHandler(void) {
 ## 8. Watchdog Analog — تنبيه عند تجاوز حد
 
 ```c
-ADC1->WDHTR = 700;        // إذا raw > 700
-ADC1->WDLTR = 300;        // أو < 300
-ADC1->CTLR1 |= (1 << 23)  // AWDEN
+ADC1_WDHTR = 700;        // إذا raw > 700
+ADC1_WDLTR = 300;        // أو < 300
+ADC1_CTLR1 |= (1 << 23)  // AWDEN
             | (1 << 22)   // AWDIE
             | (1 << 9)    // AWDSGL (واحد فقط)
             | 2;          // AWDCH = CH2
@@ -281,7 +279,7 @@ ADC1->CTLR1 |= (1 << 23)  // AWDEN
 لقراءة `CH2`: استخدم بتات `[8:6]`.
 
 ```c
-ADC1->SAMPTR2 = (ADC1->SAMPTR2 & ~(0x7 << 6)) | (0b111 << 6);
+ADC1_SAMPTR2 = (ADC1_SAMPTR2 & ~(0x7 << 6)) | (0b111 << 6);
 ```
 
 > 🎯 فهم هذا التخطيط يوفر عليك ساعات من البحث.
