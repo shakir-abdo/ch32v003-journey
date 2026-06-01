@@ -1,0 +1,40 @@
+{
+  "name": "ch32v003-journey",
+  "version": "0.1.0",
+  "description": "ch32v003-journey — built from my-nuxt4-template",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev --host",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "typecheck": "nuxt typecheck"
+  },
+  "dependencies": {
+    "@nuxt/content": "^3.14.0",
+    "@nuxt/fonts": "^0.14.0",
+    "@nuxt/icon": "^2.2.2",
+    "@nuxt/image": "^2.0.0",
+    "@nuxt/ui": "^3.3.7",
+    "@nuxt/ui-pro": "^3.3.7",
+    "@nuxtjs/i18n": "^10.4.0",
+    "@vite-pwa/nuxt": "^1.1.1",
+    "@vueuse/nuxt": "^14.3.0",
+    "nanoid": "^5.1.11",
+    "nuxt": "^4.4.6",
+    "shiki": "^4.1.0",
+    "tailwindcss": "^4.3.0",
+    "vue": "^3.5.18",
+    "vue-router": "^4.5.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@iconify-json/lucide": "^1.2.0",
+    "@iconify-json/simple-icons": "^1.2.83",
+    "better-sqlite3": "^12.10.0",
+    "typescript": "^5.6.3",
+    "vue-tsc": "^2.1.10"
+  }
+}

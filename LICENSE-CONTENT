@@ -1,0 +1,43 @@
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
+(CC BY-NC-SA 4.0)
+
+Applies to: all lesson content under `content/lessons/**` (Arabic markdown
+files L00..L19 and any future lessons), all hardware images under
+`public/hardware/**`, and any other educational copy on the site (page
+descriptions, headings) that is not source code.
+
+Source code is licensed separately under MIT — see the LICENSE file.
+
+═══════════════════════════════════════════════════════════════════════════
+
+Copyright (c) 2026 Shakir Abdo
+
+You are free to:
+- **Share** — copy and redistribute the material in any medium or format
+- **Adapt** — remix, transform, and build upon the material
+
+Under the following terms:
+- **Attribution** — You must give appropriate credit (link back to
+  ch32v003.shakir.sd and the author), provide a link to the license, and
+  indicate if changes were made. You may do so in any reasonable manner, but
+  not in any way that suggests the licensor endorses you or your use.
+- **NonCommercial** — You may not use the material for commercial purposes.
+  Selling the lessons, monetizing a rebranded copy of the site, or including
+  the content in a paid course or product is not permitted without prior
+  written permission.
+- **ShareAlike** — If you remix, transform, or build upon the material, you
+  must distribute your contributions under the same license as the original.
+
+Plain-English summary:
+- ✅ Read, study, and share for free.
+- ✅ Translate into other languages — please open a PR or fork with attribution.
+- ✅ Reuse short code snippets from the lessons in your own projects (the
+     `LICENSE` MIT also covers code, including in-lesson snippets).
+- ❌ Do not rebrand and rehost the entire curriculum as your own product.
+- ❌ Do not bundle the lessons into a paid course or commercial offering.
+
+Full legal text:
+https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
+
+Human-readable summary:
+https://creativecommons.org/licenses/by-nc-sa/4.0/

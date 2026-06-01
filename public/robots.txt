@@ -1,0 +1,28 @@
+# robots.txt for CH32V003 Journey — https://ch32v003.shakir.sd
+# All content is publicly accessible educational material.
+
+User-agent: *
+Allow: /
+Crawl-delay: 1
+
+# Block AI-only training scrapers if you don't want lessons in datasets.
+# Comment these lines out if you DO want them indexed.
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: PerplexityBot
+Disallow: /
+
+Sitemap: https://ch32v003.shakir.sd/sitemap.xml

@@ -1,0 +1,48 @@
+# Nuxt dev/build outputs
+.output
+.data
+.nuxt
+.nitro
+.cache
+dist
+
+# Node dependencies
+node_modules
+
+# Logs
+logs
+*.log
+
+# Misc
+.DS_Store
+.fleet
+.idea
+
+# Local env files
+.env
+.env.*
+!.env.example
+
+# Claude Code — local agent state, skills, settings (machine-specific)
+.claude/
+skills/
+skills-lock.json
+CLAUDE.md
+
+# Editor metadata
+.vscode/
+.cursor/
+
+# OS junk
+Thumbs.db
+
+# md2pdf temp + ipynb checkpoints (project-specific)
+.md2pdf_tmp/
+*.ipynb_checkpoints
+
+# Generated content database (rebuilt by @nuxt/content)
+.data/content/
+
+# Local production builds
+.output
+.nitro

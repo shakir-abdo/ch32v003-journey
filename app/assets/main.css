@@ -1,0 +1,458 @@
+@import "tailwindcss";
+@import "@nuxt/ui-pro";
+
+@source "../**/*.{vue,js,ts}";
+@source "../../app.vue";
+@source "../../server/**/*.{vue,js,ts}";
+
+@font-face {
+  font-family: 'Hail';
+  src: url('/fonts/hail-normal.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Hail';
+  src: url('/fonts/hail-bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: 'IBM Plex Sans Arabic', 'Rajdhani', 'Hail', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-display: 'Rajdhani', 'Space Grotesk', 'Orbitron', system-ui, sans-serif;
+}
+
+:root {
+  --ui-radius: 0.25rem;
+}
+
+/* ── Dark mode (default) — cyberpunk HUD palette ── */
+html.dark,
+html:not(.light) {
+  --cy-bg: #06060A;
+  --cy-shell: #0A0A12;          /* header + footer (slightly elevated from bg) */
+  --cy-surface: #0F0F17;
+  --cy-card: #12121C;
+  --cy-card-elev: #1A1A28;
+  --cy-muted: #1E1E2E;
+  --cy-fg: #E4E4F4;
+  --cy-fg-muted: #7A7A95;
+  --cy-primary: #00F0FF;
+  --cy-secondary: #FF2E97;
+  --cy-success: #00FF9F;
+  --cy-warning: #FFB800;
+  --cy-destructive: #FF2E5E;
+  --cy-border: rgba(0, 240, 255, 0.12);
+  --cy-border-strong: rgba(0, 240, 255, 0.28);
+  --cy-grid-line: rgba(0, 240, 255, 0.025);
+  --cy-code-bg: #0A0A12;
+}
+
+/* ── Light mode — readable inverted palette, keeps neon accents ── */
+html.light {
+  --cy-bg: #F7F8FA;
+  --cy-shell: #FFFFFF;          /* header + footer */
+  --cy-surface: #FFFFFF;
+  --cy-card: #FFFFFF;
+  --cy-card-elev: #F1F3F8;
+  --cy-muted: #EEF0F5;
+  --cy-fg: #0B0B14;
+  --cy-fg-muted: #6B6E80;
+  --cy-primary: #0090A0;        /* cyan, darker for contrast on light bg */
+  --cy-secondary: #C71A6E;      /* magenta, darker */
+  --cy-success: #009663;
+  --cy-warning: #B97200;
+  --cy-destructive: #C71F3F;
+  --cy-border: rgba(0, 100, 130, 0.14);
+  --cy-border-strong: rgba(0, 100, 130, 0.32);
+  --cy-grid-line: rgba(0, 100, 130, 0.04);
+  --cy-code-bg: #F1F3F8;
+}
+
+html, body {
+  background: var(--cy-bg);
+  color: var(--cy-fg);
+  font-family: 'IBM Plex Sans Arabic', 'Rajdhani', system-ui, sans-serif;
+}
+
+/* Subtle grid backdrop applied to <body> so every page inherits it */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(var(--cy-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--cy-grid-line) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* All page content sits above the grid */
+#__nuxt, main, header, footer {
+  position: relative;
+  z-index: 1;
+}
+
+.font-mono   { font-family: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace; }
+.font-display { font-family: 'Rajdhani', 'Space Grotesk', system-ui, sans-serif; }
+
+/* Reusable cyberpunk surfaces */
+.cy-panel {
+  background: var(--cy-card);
+  border: 1px solid var(--cy-border);
+  border-radius: 4px;
+}
+.cy-panel:hover {
+  border-color: var(--cy-border-strong);
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.12);
+}
+.cy-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 2px;
+  border: 1px solid var(--cy-border);
+  color: var(--cy-fg-muted);
+}
+.cy-tag-primary  { color: var(--cy-primary);  border-color: rgba(0,240,255,0.35); }
+.cy-tag-success  { color: var(--cy-success);  border-color: rgba(0,255,159,0.35); }
+.cy-tag-warning  { color: var(--cy-warning);  border-color: rgba(255,184,0,0.35); }
+.cy-tag-magenta  { color: var(--cy-secondary); border-color: rgba(255,46,151,0.35); }
+.cy-tag-purple   { color: #B14AED;            border-color: rgba(177,74,237,0.35); }
+
+.cy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: transparent;
+  color: var(--cy-primary);
+  border: 1px solid rgba(0, 240, 255, 0.4);
+  border-radius: 2px;
+  transition: all 180ms ease;
+}
+.cy-btn:hover {
+  border-color: var(--cy-primary);
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.35);
+  background: rgba(0, 240, 255, 0.05);
+}
+.cy-btn-solid {
+  background: var(--cy-primary);
+  color: var(--cy-bg);
+}
+.cy-btn-solid:hover {
+  background: #00F0FF;
+  box-shadow: 0 0 24px rgba(0, 240, 255, 0.5);
+}
+
+/* Cyberpunk track colors */
+.track-foundation { --t: #00F0FF; }
+.track-io         { --t: #00FF9F; }
+.track-comm       { --t: #B14AED; }
+.track-analog     { --t: #FFB800; }
+.track-pro        { --t: #FF2E97; }
+.track-capstone   { --t: #FF2E5E; }
+
+/* Prose styling override for lesson reader (rendered via @nuxt/content's prose components) */
+.cy-prose {
+  color: var(--cy-fg);
+  font-size: 15px;
+  line-height: 1.8;
+}
+.cy-prose h1, .cy-prose h2, .cy-prose h3, .cy-prose h4 {
+  font-family: 'Rajdhani', 'Space Grotesk', system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  color: var(--cy-fg);
+  font-weight: 700;
+  margin-top: 2em;
+  margin-bottom: 0.6em;
+  scroll-margin-top: 80px;
+}
+.cy-prose h1 { font-size: 28px; border-bottom: 1px solid var(--cy-border); padding-bottom: 12px; }
+.cy-prose h2 { font-size: 22px; color: var(--cy-primary); }
+.cy-prose h3 { font-size: 17px; }
+.cy-prose h4 { font-size: 15px; color: var(--cy-fg-muted); }
+.cy-prose p, .cy-prose ul, .cy-prose ol { margin: 0.8em 0; }
+.cy-prose a { color: var(--cy-primary); text-decoration: none; border-bottom: 1px dashed rgba(0,240,255,0.4); }
+.cy-prose a:hover { color: var(--cy-primary); border-bottom-color: var(--cy-primary); }
+.cy-prose code:not(pre code) {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.875em;
+  padding: 2px 6px;
+  background: var(--cy-muted);
+  border: 1px solid var(--cy-border);
+  border-radius: 2px;
+  color: var(--cy-primary);
+  direction: ltr;
+  unicode-bidi: isolate;
+  display: inline-block;
+}
+.cy-prose pre,
+.cy-prose pre code,
+.cy-prose pre * {
+  direction: ltr !important;
+  unicode-bidi: isolate;
+  text-align: left;
+}
+.cy-prose pre {
+  background: var(--cy-code-bg);
+  border: 1px solid var(--cy-border);
+  border-radius: 4px;
+  padding: 16px 20px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 1.2em 0;
+}
+.cy-prose blockquote {
+  border-inline-start: 3px solid var(--cy-primary);
+  background: rgba(0, 240, 255, 0.04);
+  padding: 12px 18px;
+  margin: 1.2em 0;
+  border-radius: 0 4px 4px 0;
+  color: var(--cy-fg-muted);
+}
+.cy-prose blockquote p { margin: 0.3em 0; }
+.cy-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 1.2em 0;
+  border: 1px solid var(--cy-border);
+}
+.cy-prose th, .cy-prose td {
+  border: 1px solid var(--cy-border);
+  padding: 10px 14px;
+  text-align: start;
+}
+.cy-prose th {
+  background: var(--cy-muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--cy-primary);
+}
+.cy-prose tr:nth-child(even) td { background: rgba(0,240,255,0.02); }
+.cy-prose hr { border: none; height: 1px; background: var(--cy-border); margin: 2em 0; }
+.cy-prose strong { color: var(--cy-fg); font-weight: 700; }
+
+html[dir="rtl"] body {
+  font-family: 'Hail', system-ui, sans-serif;
+}
+
+.hail-font {
+  font-family: 'Hail', sans-serif;
+}
+
+/* Instrument design system — global CSS custom properties.
+   Kept in main.css (not scoped) so descendants of any depth can read them. */
+.ins-dark {
+  --ins-bg: #0B0E15;
+  --ins-card: #141923;
+  --ins-elev: #1A2030;
+  --ins-border: #1F2A3C;
+  --ins-text: #E6E9EF;
+  --ins-muted: #6B7280;
+  --ins-deep: #080B11;
+  background: var(--ins-bg);
+  color: var(--ins-text);
+}
+.ins-light {
+  --ins-bg: #F8FAFC;
+  --ins-card: #FFFFFF;
+  --ins-elev: #F1F5F9;
+  --ins-border: #E2E8F0;
+  --ins-text: #0F172A;
+  --ins-muted: #64748B;
+  --ins-deep: #FAFBFC;
+  background: var(--ins-bg);
+  color: var(--ins-text);
+}
+
+@keyframes ins-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+@keyframes ins-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* Claymorphism — global helper classes used by component shells.
+   Kept in main.css so components don't each carry the stacked shadow
+   definitions. Color/positioning still set per-instance via bg-* etc. */
+.clay-card {
+  border-radius: 28px;
+  box-shadow:
+    inset 0 6px 12px rgba(255, 255, 255, 0.6),
+    inset 0 -4px 10px rgba(61, 44, 92, 0.08),
+    0 12px 24px rgba(61, 44, 92, 0.08),
+    0 4px 8px rgba(61, 44, 92, 0.04);
+}
+.clay-pill {
+  border-radius: 9999px;
+  box-shadow:
+    inset 0 2px 4px rgba(255, 255, 255, 0.7),
+    inset 0 -2px 4px rgba(61, 44, 92, 0.08),
+    0 4px 10px rgba(61, 44, 92, 0.06);
+}
+.clay-btn {
+  border-radius: 9999px;
+  box-shadow:
+    inset 0 3px 6px rgba(255, 255, 255, 0.3),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.12),
+    0 6px 14px rgba(61, 44, 92, 0.18),
+    0 2px 4px rgba(61, 44, 92, 0.08);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+.clay-btn:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 3px 6px rgba(255, 255, 255, 0.3),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.12),
+    0 10px 20px rgba(61, 44, 92, 0.22),
+    0 3px 6px rgba(61, 44, 92, 0.1);
+}
+.clay-btn:active {
+  transform: translateY(0px);
+  box-shadow:
+    inset 0 3px 6px rgba(0, 0, 0, 0.18),
+    inset 0 -2px 4px rgba(255, 255, 255, 0.2),
+    0 2px 4px rgba(61, 44, 92, 0.08);
+}
+.clay-blob {
+  border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%;
+  box-shadow:
+    inset 0 8px 14px rgba(255, 255, 255, 0.5),
+    inset 0 -6px 12px rgba(0, 0, 0, 0.1),
+    0 10px 20px rgba(61, 44, 92, 0.15);
+}
+.clay-track {
+  box-shadow:
+    inset 0 2px 4px rgba(61, 44, 92, 0.12),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.4);
+}
+.clay-input {
+  border-radius: 16px;
+  background: white;
+  box-shadow:
+    inset 0 2px 4px rgba(61, 44, 92, 0.08),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.8);
+  transition: box-shadow 150ms ease;
+}
+.clay-input:focus-within,
+input.clay-input:focus,
+textarea.clay-input:focus {
+  outline: none;
+  box-shadow:
+    inset 0 2px 4px rgba(61, 44, 92, 0.12),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.4),
+    0 0 0 3px rgba(182, 135, 254, 0.25);
+}
+
+/* ---------------------------------------------------------------------------
+ * Page + Layout transitions
+ *
+ * Default `page` and `layout` transitions: pure opacity fade. Tuned to feel
+ * snappy (180ms in, 120ms out) so navigation never lags. No translate — we
+ * tried that and it felt fussy.
+ *
+ * Override per page (e.g. for a slide effect):
+ *   definePageMeta({pageTransition: {name: 'slide-left', mode: 'out-in'}})
+ *
+ * Disable per page:
+ *   definePageMeta({pageTransition: false})
+ * ------------------------------------------------------------------------- */
+
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 180ms ease;
+}
+.page-leave-active {
+  transition-duration: 120ms;
+}
+.page-enter-from,
+.page-leave-to {
+  opacity: 0;
+}
+
+.layout-enter-active,
+.layout-leave-active {
+  transition: opacity 200ms ease;
+}
+.layout-enter-from,
+.layout-leave-to {
+  opacity: 0;
+}
+
+/* Drop-in alternative: horizontal slide. Use via:
+ *   definePageMeta({pageTransition: {name: 'slide-left', mode: 'out-in'}})
+ */
+.slide-left-enter-active,
+.slide-left-leave-active {
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+.slide-left-enter-from {
+  opacity: 0;
+  transform: translateX(12px);
+}
+.slide-left-leave-to {
+  opacity: 0;
+  transform: translateX(-12px);
+}
+
+/* List enter/leave + reorder — for <TransitionGroup name="list">.
+ * Works for both block-level divs and table rows. We deliberately avoid
+ * `position: absolute` on leave (which would break table layouts) so on
+ * deletion siblings snap into place once the leave animation finishes —
+ * acceptable for short lists.
+ */
+.list-enter-active,
+.list-leave-active {
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+.list-enter-from {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+.list-leave-to {
+  opacity: 0;
+  transform: translateX(8px);
+}
+.list-move {
+  transition: transform 280ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide-left-enter-active,
+  .slide-left-leave-active,
+  .list-enter-active,
+  .list-leave-active,
+  .list-move {
+    transition: opacity 120ms ease;
+  }
+  .slide-left-enter-from,
+  .slide-left-leave-to,
+  .list-enter-from,
+  .list-leave-to {
+    transform: none;
+  }
+}

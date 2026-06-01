@@ -1,0 +1,938 @@
+{
+  "common": {
+    "back": "Back",
+    "cancel": "Cancel",
+    "save": "Save",
+    "submit": "Submit",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "export": "Export",
+    "search": "Search...",
+    "loading": "Loading...",
+    "saved": "Saved",
+    "saveChanges": "Save changes",
+    "unsavedChanges": "Unsaved changes will not apply until you save."
+  },
+  "brand": {
+    "name": "Government Services Platform",
+    "tagline": "Government Services Platform"
+  },
+  "status": {
+    "approved": "Approved",
+    "pending": "Pending",
+    "review": "Under review"
+  },
+  "clay": {
+    "landing": {
+      "nav": {
+        "back": "Back",
+        "features": "Features",
+        "pricing": "Pricing",
+        "about": "About",
+        "blog": "Blog",
+        "signIn": "Sign in",
+        "getTheApp": "Get the app",
+        "openDashboard": "Open dashboard"
+      },
+      "samplePages": "Sample pages →",
+      "hero": {
+        "eyebrow": "New · Sleep Stories",
+        "headlineLine1": "Tiny moments,",
+        "headlineLine2": "big calm.",
+        "lead": "Softly is the gentlest way to keep your sleep, breath, and mood happy. No streaks-or-die. Just small, kind nudges.",
+        "ctaStart": "Start free",
+        "ctaDemo": "Watch demo",
+        "statSleepers": "happy sleepers",
+        "statStore": "App Store",
+        "scoreLabel": "Sleep score",
+        "scoreCaption": "Better than 9 of the last 10 nights.",
+        "streakLine1": "14-day",
+        "streakLine2": "streak",
+        "trackingNow": "Tracking now"
+      },
+      "features": {
+        "eyebrow": "What's inside",
+        "titleLine1": "Small wins,",
+        "titleLine2": "day after day.",
+        "items": {
+          "sleep": {
+            "title": "Sleep tracker",
+            "desc": "Soft nudges, weekly insights, and a calm bedtime routine."
+          },
+          "mindful": {
+            "title": "Mindful minutes",
+            "desc": "Guided breathing, body scans, and quiet check-ins."
+          },
+          "streaks": {
+            "title": "Daily streaks",
+            "desc": "A friendly nudge that keeps your habits alive."
+          },
+          "sounds": {
+            "title": "Calm sounds",
+            "desc": "Rain, rivers, and lo-fi loops to take the edge off."
+          }
+        }
+      },
+      "testimonial": {
+        "quote": "Three weeks in and my Sunday-night dread is just… gone. I don't know how to explain it. Softly is the only wellness app that doesn't feel like homework.",
+        "authorName": "Maya R.",
+        "authorRole": "designer · Lisbon"
+      },
+      "pricing": {
+        "title": "Sweet, simple pricing.",
+        "lead": "No commitments. Cancel from the app, anytime.",
+        "perMonth": "/mo",
+        "mostPopular": "Most popular",
+        "choose": "Choose {plan}",
+        "plans": {
+          "free": {
+            "name": "Free",
+            "sub": "forever",
+            "features": [
+              "3 daily check-ins",
+              "Basic sounds library",
+              "Community access"
+            ]
+          },
+          "plus": {
+            "name": "Plus",
+            "sub": "per month",
+            "features": [
+              "Unlimited check-ins",
+              "Full sounds library",
+              "Sleep stories",
+              "Weekly insights"
+            ]
+          },
+          "family": {
+            "name": "Family",
+            "sub": "up to 5 members",
+            "features": [
+              "Everything in Plus",
+              "Shared streaks",
+              "Kids meditations",
+              "Family dashboard"
+            ]
+          }
+        }
+      },
+      "cta": {
+        "titleLine1": "Ready to feel",
+        "titleLine2": "a little softer?",
+        "lead": "Download the app and get your first week of Plus on us. No card required.",
+        "appStore": "App Store",
+        "googlePlay": "Google Play"
+      },
+      "footer": {
+        "copyright": "© 2026 Softly. A demo, not a real product.",
+        "madeWith": "Made with care."
+      }
+    },
+    "login": {
+      "newHerePrompt": "New here? Sign up →",
+      "welcomeBack": "Welcome back",
+      "heroLine1": "Hi friend,",
+      "heroLine2": "good to see you.",
+      "lead": "Sign in to pick up where you left off.",
+      "remember": "Stay signed in",
+      "forgot": "Forgot?",
+      "submit": "Sign in",
+      "submitting": "Signing in...",
+      "agreePrefix": "By signing in you agree to our",
+      "and": "and"
+    },
+    "dashboard": {
+      "greetingEvening": "Good evening 🌙",
+      "greeting": "Hi {name}, let's slow down.",
+      "signOut": "Sign out",
+      "minutes": "{n} min",
+      "nav": {
+        "home": "Home",
+        "library": "Library",
+        "stats": "Stats",
+        "streaks": "Streaks",
+        "settings": "Settings"
+      },
+      "upgrade": {
+        "title": "Upgrade to Plus",
+        "sub": "Unlock everything",
+        "cta": "Try free"
+      },
+      "stats": {
+        "streak": {
+          "label": "Streak",
+          "sub": "days in a row"
+        },
+        "sleep": {
+          "label": "Sleep",
+          "sub": "last night"
+        },
+        "calm": {
+          "label": "Calm",
+          "sub": "today"
+        },
+        "mood": {
+          "label": "Mood",
+          "sub": "/ 10 today"
+        }
+      },
+      "plan": {
+        "title": "Today's plan",
+        "lead": "3 small moments, paced for you.",
+        "sessions": "3 sessions",
+        "items": {
+          "morning": {
+            "title": "Morning breath",
+            "type": "Breathwork"
+          },
+          "walking": {
+            "title": "Walking meditation",
+            "type": "Movement"
+          },
+          "bedtime": {
+            "title": "Bedtime story",
+            "type": "Sleep"
+          }
+        }
+      },
+      "mood": {
+        "title": "How are you?",
+        "sub": "Quick check-in.",
+        "todayLabel": "Mood today"
+      },
+      "streak": {
+        "badge": "14-day streak",
+        "headlineLine1": "You've been showing up.",
+        "headlineLine2": "Be proud.",
+        "body": "Two weeks of small moments. Whatever the world threw at you, you found 5 minutes for yourself.",
+        "share": "Share milestone"
+      }
+    },
+    "settings": {
+      "title": "Settings",
+      "lead": "Make Softly yours.",
+      "dashboardLink": "Dashboard",
+      "tabs": {
+        "profile": "Profile",
+        "practice": "Practice",
+        "notifications": "Notifications",
+        "subscription": "Subscription"
+      },
+      "profile": {
+        "title": "Profile",
+        "lead": "This is how you show up across Softly.",
+        "uploadPhoto": "Upload photo",
+        "uploadHint": "JPG or PNG · max 2MB",
+        "name": "Name",
+        "email": "Email",
+        "pronouns": "Pronouns",
+        "pronounsPlaceholder": "she/her, they/them...",
+        "bio": "Bio"
+      },
+      "practice": {
+        "title": "Practice",
+        "lead": "When and how Softly nudges you.",
+        "dailyReminder": "Daily reminder",
+        "sessionLength": "Default session length",
+        "minutes": "{n} minutes",
+        "weekendNudges": {
+          "title": "Weekend nudges",
+          "sub": "Send reminders on Saturday and Sunday"
+        }
+      },
+      "notifications": {
+        "title": "Notifications",
+        "lead": "Pick what reaches you, and when.",
+        "options": {
+          "daily": {
+            "title": "Daily check-in",
+            "desc": "A gentle morning nudge"
+          },
+          "streak": {
+            "title": "Streak reminders",
+            "desc": "When you're about to lose a streak"
+          },
+          "milestone": {
+            "title": "Milestone celebrations",
+            "desc": "Every 7, 30, 100 days"
+          },
+          "weekly": {
+            "title": "Weekly summary",
+            "desc": "Sunday morning recap"
+          },
+          "marketing": {
+            "title": "Product updates",
+            "desc": "New features, occasional news"
+          }
+        }
+      },
+      "subscription": {
+        "title": "Subscription",
+        "lead": "Your Softly Plus plan.",
+        "planName": "Softly Plus",
+        "planSub": "$6/month · renews June 14",
+        "active": "Active",
+        "updatePayment": "Update payment method",
+        "viewBilling": "View billing history",
+        "pauseSubscription": "Pause subscription",
+        "cancelPlan": "Cancel plan",
+        "confirmCancel": {
+          "title": "Cancel your Plus plan?",
+          "description": "You can come back anytime. Your streaks and history stay safe.",
+          "confirm": "Yes, cancel",
+          "keep": "Keep my plan"
+        },
+        "cancelSuccess": {
+          "title": "Plan cancelled",
+          "body": "Sad to see you go. See you soon 🌿"
+        }
+      },
+      "saveBar": {
+        "saved": "Saved",
+        "unsavedHint": "Changes won't apply until you save.",
+        "cancel": "Cancel",
+        "save": "Save"
+      }
+    },
+    "errors404": {
+      "title": "We got lost in the clouds.",
+      "body": "The page you're looking for has wandered off. No worries — let's head back to somewhere calmer.",
+      "takeHome": "Take me home",
+      "dashboard": "Dashboard",
+      "altHeading": "Or try one of these:",
+      "altLinks": {
+        "signIn": "Sign in",
+        "getStarted": "Get started",
+        "settings": "Settings"
+      }
+    },
+    "signup": {
+      "alreadyInPrompt": "Already in? Sign in →",
+      "stepLabel": "Step {n} of 3",
+      "step1": {
+        "title": "Tell us who you are",
+        "lead": "Just the basics — we keep it simple.",
+        "nameLabel": "Your name",
+        "namePlaceholder": "Maya",
+        "passwordHint": "8+ chars, uppercase and number",
+        "submit": "Continue",
+        "submitting": "Continuing..."
+      },
+      "step2": {
+        "title": "What brings you here?",
+        "lead": "Pick what feels right today. You can always change later.",
+        "moods": {
+          "calm": "Stay calm",
+          "sleep": "Sleep better",
+          "focus": "Focus deeper",
+          "mood": "Lift my mood"
+        },
+        "moodRequired": "Pick what feels right — you can always change later",
+        "back": "Back",
+        "submit": "Continue",
+        "submitting": "Setting up..."
+      },
+      "step3": {
+        "title": "Welcome, {name}!",
+        "lead": "Your account is ready. Let's take a breath.",
+        "successHeading": "You're all set.",
+        "successBody": "We'll send you a friendly nudge each morning. No spam — just one tiny moment.",
+        "openDashboard": "Open my dashboard"
+      }
+    }
+  },
+  "formal": {
+    "landing": {
+      "tagline": "Government Services Platform",
+      "hero": {
+        "eyebrow": "Trusted by 47 government entities",
+        "titleLine1": "Modern government services,",
+        "titleLine2": "fast and secure",
+        "lead": "A unified platform for citizens, businesses, and ministries — process requests, issue permits, and manage approvals end-to-end with bank-grade security and full Arabic support."
+      },
+      "cta": {
+        "getStarted": "Get started",
+        "goToDashboard": "Go to dashboard",
+        "noCardNeeded": "No credit card required · free institutional access"
+      },
+      "stats": {
+        "users": "Active users",
+        "requests": "Requests processed",
+        "entities": "Connected entities",
+        "uptime": "Service uptime"
+      },
+      "features": {
+        "title": "Built for institutional scale",
+        "subtitle": "Compliance, speed, and bilingual UX — out of the box",
+        "security": {
+          "title": "Bank-grade security",
+          "body": "End-to-end encryption, 2FA, and continuous monitoring. SOC2-aligned with full audit trails."
+        },
+        "speed": {
+          "title": "Sub-second responses",
+          "body": "Edge-rendered pages and a streamed dashboard keep operators productive on any connection."
+        },
+        "arabic": {
+          "title": "Arabic + RTL native",
+          "body": "Bilingual UI, content, and reports. Direction flips reactively — no second build, no separate site."
+        },
+        "audit": {
+          "title": "Audit-ready by default",
+          "body": "Every state change is timestamped, signed, and exportable for compliance reviews."
+        }
+      },
+      "finalCta": {
+        "title": "Ready to modernise your services?",
+        "lead": "Spin up a pilot in days, not quarters. We onboard your team, migrate your data, and go live with you."
+      }
+    },
+    "demoBanner": {
+      "title": "Formal system — archetype pages",
+      "lead": "This system includes ready-to-use sample pages:",
+      "errorPage": "Error page"
+    },
+    "pageHeading": {
+      "title": "Dashboard",
+      "subtitle": "Overview of system activity this week"
+    },
+    "actions": {
+      "export": "Export",
+      "newRequest": "New request"
+    },
+    "metrics": {
+      "totalRequests": "Total requests",
+      "processing": "In processing",
+      "review": "Under review",
+      "rejected": "Rejected",
+      "sinceLastWeek": "since last week"
+    },
+    "recentRequests": {
+      "title": "Recent requests",
+      "lastUpdated": "Last updated: 5 minutes ago",
+      "searchPlaceholder": "Search..."
+    },
+    "departments": {
+      "title": "Completion rate",
+      "subtitle": "By department",
+      "commercial": "Commercial services",
+      "realEstate": "Real estate licenses",
+      "finance": "Financial affairs",
+      "contracts": "Government contracts"
+    },
+    "alerts": {
+      "update": {
+        "title": "System update",
+        "body": "System update scheduled for Friday at 2:00 AM. Expected downtime: 15 minutes."
+      },
+      "sync": {
+        "title": "Sync complete",
+        "body": "Data successfully synced with the central system."
+      },
+      "review": {
+        "title": "Requests need review",
+        "body": "12 requests have been pending for more than 48 hours."
+      }
+    },
+    "samples": {
+      "requests": [
+        {
+          "id": "REQ-2026-0892",
+          "title": "New commercial license application",
+          "org": "Future Co."
+        },
+        {
+          "id": "REQ-2026-0891",
+          "title": "Building permit renewal",
+          "org": "United Contractors"
+        },
+        {
+          "id": "REQ-2026-0890",
+          "title": "Government lease amendment",
+          "org": "Ministry of Housing"
+        },
+        {
+          "id": "REQ-2026-0889",
+          "title": "Disbursement claim",
+          "org": "Al-Noor Foundation"
+        }
+      ]
+    }
+  },
+  "nav": {
+    "home": "Home",
+    "requests": "Requests",
+    "analytics": "Analytics",
+    "reports": "Reports",
+    "users": "Users",
+    "permissions": "Permissions",
+    "activity": "Activity log",
+    "dashboard": "Dashboard",
+    "settings": "Settings",
+    "login": "Sign in",
+    "signup": "Create account",
+    "section": {
+      "general": "General",
+      "admin": "Administration"
+    }
+  },
+  "auth": {
+    "login": {
+      "welcomeBack": "Welcome back",
+      "lead": "Sign in to access your account and follow your requests.",
+      "email": "Email",
+      "emailPlaceholder": "you{'@'}example.com",
+      "password": "Password",
+      "passwordPlaceholder": "••••••••",
+      "remember": "Remember me",
+      "forgot": "Forgot your password?",
+      "submit": "Sign in",
+      "or": "or continue with",
+      "noAccount": "Don't have an account?",
+      "createOne": "Create a new account",
+      "invalid": "Invalid email or password",
+      "logout": "Sign out",
+      "errors": {
+        "emailRequired": "Please enter your email address",
+        "passwordRequired": "Please enter your password"
+      },
+      "branding": {
+        "title": "A secure and trusted platform for all government services",
+        "lead": "End-to-end encryption, two-factor authentication, and continuous monitoring to protect your data 24/7.",
+        "users": "Users",
+        "requests": "Requests",
+        "entities": "Entities"
+      }
+    },
+    "signup": {
+      "badge": "Create a new account",
+      "title": "Join the Government Services Platform",
+      "lead": "Fill in the form below to start using our services.",
+      "fullName": "Full name",
+      "fullNamePlaceholder": "Mohammad Abdullah",
+      "agree": "I agree to the",
+      "terms": "Terms",
+      "and": "and the",
+      "privacy": "Privacy Policy",
+      "passwordHint": "8+ characters, including digits, an uppercase letter, and a symbol",
+      "submit": "Create account",
+      "haveAccount": "Already have an account?",
+      "signIn": "Sign in",
+      "emailTaken": "This email is already registered",
+      "errors": {
+        "nameShort": "Your name must be at least 3 characters",
+        "emailInvalid": "Email address looks invalid",
+        "passwordWeak": "Password is too weak",
+        "agreeRequired": "You must agree to the terms to continue"
+      },
+      "strength": [
+        "Weak",
+        "Fair",
+        "Good",
+        "Strong",
+        "Excellent"
+      ]
+    }
+  },
+  "dashboard": {
+    "greeting": "Welcome, {name} 👋",
+    "lead": "Here is a summary of your platform today.",
+    "metrics": {
+      "todayRequests": "Requests today",
+      "avgTime": "Average response time",
+      "completionRate": "Completion rate",
+      "pending": "Pending"
+    },
+    "tasks": {
+      "title": "Active tasks",
+      "count": "{count} tasks · {urgent} urgent",
+      "filter": "Filter",
+      "sort": "Sort",
+      "ariaDelete": "Delete {title}",
+      "columns": {
+        "task": "Task",
+        "assignee": "Assignee",
+        "due": "Due",
+        "priority": "Priority",
+        "status": "Status"
+      },
+      "delete": {
+        "title": "Delete this task?",
+        "description": "\"{title}\" will be deleted permanently. This action cannot be undone.",
+        "confirm": "Delete"
+      },
+      "deleted": "Task deleted"
+    },
+    "departmentProgress": {
+      "title": "Completion rate",
+      "subtitle": "By department — this week"
+    },
+    "alerts": {
+      "overdue": {
+        "title": "Overdue requests",
+        "body": "12 requests are past their due date by more than 48 hours."
+      },
+      "maintenance": {
+        "title": "Scheduled maintenance",
+        "body": "System maintenance is scheduled for Friday at 2:00 AM."
+      }
+    },
+    "breadcrumb": {
+      "platform": "Platform"
+    },
+    "sidebar": {
+      "userName": "Shakir Abdo",
+      "userRole": "System administrator"
+    },
+    "search": {
+      "placeholder": "Search for a request, user, or report..."
+    },
+    "task": {
+      "priority": {
+        "high": "Urgent",
+        "medium": "Medium",
+        "low": "Low"
+      },
+      "status": {
+        "in-progress": "In progress",
+        "review": "Review",
+        "done": "Done"
+      }
+    },
+    "samples": {
+      "tasks": [
+        {
+          "id": "T-2841",
+          "title": "Review new license applications",
+          "assignee": "Sara Ahmed",
+          "due": "Today"
+        },
+        {
+          "id": "T-2840",
+          "title": "Approve Q2 report",
+          "assignee": "Mohammed Al-Otaibi",
+          "due": "Tomorrow"
+        },
+        {
+          "id": "T-2839",
+          "title": "Update procedure docs",
+          "assignee": "Layla Al-Khaled",
+          "due": "In 3 days"
+        },
+        {
+          "id": "T-2838",
+          "title": "Prepare weekly meeting deck",
+          "assignee": "Ahmed Al-Anazi",
+          "due": "Next week"
+        },
+        {
+          "id": "T-2837",
+          "title": "Train staff on new system",
+          "assignee": "Fatima Al-Shammari",
+          "due": "Done"
+        }
+      ]
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "lead": "Manage your account information, preferences, and security.",
+    "tabs": {
+      "profile": "Profile",
+      "account": "Account",
+      "notifications": "Notifications",
+      "security": "Security",
+      "billing": "Billing"
+    },
+    "profile": {
+      "title": "Profile",
+      "lead": "This information appears in your public profile on the platform.",
+      "uploadPhoto": "Upload new photo",
+      "uploadHint": "JPG or PNG · max 2 MB",
+      "fields": {
+        "fullName": "Full name",
+        "email": "Email",
+        "phone": "Mobile number",
+        "language": "Language",
+        "bio": "Short bio",
+        "bioHint": "Maximum 200 characters."
+      }
+    },
+    "account": {
+      "title": "Account",
+      "lead": "Adjust your timezone and interface preferences.",
+      "timezone": "Timezone",
+      "timezones": {
+        "riyadh": "Asia/Riyadh (GMT+3)",
+        "dubai": "Asia/Dubai (GMT+4)",
+        "london": "Europe/London (GMT+0)"
+      },
+      "timezoneNote": "Changing the timezone affects how all timestamps are displayed in the system."
+    },
+    "notifications": {
+      "title": "Notification preferences",
+      "lead": "Choose how and when you receive alerts.",
+      "options": {
+        "email": {
+          "title": "Email",
+          "desc": "Receive new request alerts in your inbox."
+        },
+        "push": {
+          "title": "Browser notifications",
+          "desc": "Live alerts when the platform is open."
+        },
+        "sms": {
+          "title": "Text messages",
+          "desc": "Urgent alerts only, sent to your phone."
+        },
+        "weekly": {
+          "title": "Weekly summary",
+          "desc": "A digest in your inbox every Sunday morning."
+        },
+        "marketing": {
+          "title": "Updates and announcements",
+          "desc": "Platform news and new features."
+        }
+      }
+    },
+    "security": {
+      "title": "Security",
+      "lead": "Protect your account and password.",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm password",
+      "twoFactor": "Two-factor authentication",
+      "twoFactorEnabled": "Enabled",
+      "twoFactorDesc": "An extra protection layer via an authenticator app.",
+      "manage": "Manage",
+      "sessions": {
+        "title": "Active sessions",
+        "body": "You have 3 active sessions. If you don't recognize them all,",
+        "signOutAll": "sign out of all devices"
+      },
+      "deleteAccount": {
+        "title": "Delete account",
+        "lead": "Permanently remove your account and all associated data. This action cannot be undone.",
+        "cta": "Delete account",
+        "confirmTitle": "Delete your account?",
+        "confirmBody": "This will permanently remove the account for {email} and all related data. There is no undo.",
+        "confirmAction": "Yes, delete my account",
+        "successTitle": "Account deleted",
+        "successBody": "Your account has been removed. We're sorry to see you go.",
+        "failed": "Could not delete account"
+      }
+    },
+    "billing": {
+      "title": "Billing",
+      "lead": "Your subscription and payment methods.",
+      "currentPlan": "Your current plan",
+      "planName": "Government Organizations",
+      "renews": "Renews on June 15, 2026",
+      "upgrade": "Upgrade plan",
+      "trialNotice": "Trial mode · subscription invoice will be sent by email."
+    },
+    "saveBar": {
+      "savedHint": "Saved",
+      "unsavedHint": "Unsaved changes will not apply until you save."
+    },
+    "loadFailed": "Could not load your settings",
+    "saveFailed": "Could not save changes",
+    "changesReverted": "Changes reverted"
+  },
+  "forms": {
+    "errors": {
+      "required": "This field is required",
+      "emailInvalid": "Please enter a valid email address",
+      "passwordTooShort": "Password must be at least {min} characters",
+      "passwordWeak": "Password is too weak",
+      "nameShort": "Name must be at least {min} characters",
+      "agreeRequired": "You must agree to continue"
+    },
+    "passwordStrength": [
+      "Weak",
+      "Fair",
+      "Good",
+      "Strong",
+      "Excellent"
+    ]
+  },
+  "errors": {
+    "404": {
+      "title": "We couldn't find this page",
+      "body": "The page may have been moved or deleted, or the link you followed is incorrect. Check the URL or return to the home page.",
+      "home": "Home",
+      "dashboard": "Dashboard",
+      "youMightLike": "You may be interested in:"
+    },
+    "unknown": "Something went wrong. Please try again."
+  },
+  "app": {
+    "header": {
+      "home": "// HOME",
+      "lessons": "// LESSONS",
+      "about": "// ABOUT",
+      "status": "[ONLINE]",
+      "resources": "// RESOURCES"
+    },
+    "landing": {
+      "hudPrefix": "SYS::INITIALIZED",
+      "hudLoad": "// LOAD_AVG: 0.13",
+      "hudSector": "// SECTOR: TUTORIAL",
+      "heroLine1": "BARE-METAL",
+      "heroLine2Pre": "CH32V003",
+      "heroLine2Post": "JOURNEY",
+      "intro": "A structured Arabic-first curriculum of {n} lessons that walks you from your first Blinky to building production-grade firmware for the CH32V003 — all at the register level, with Reference Manual cross-references at every step.",
+      "introBold": "20 lessons",
+      "ctaStart": "START_LEARNING",
+      "ctaCurriculum": "VIEW_CURRICULUM",
+      "ctaGithub": "GITHUB",
+      "stats": {
+        "lessons": "LESSONS",
+        "tracks": "TRACKS",
+        "language": "LANGUAGE",
+        "chip": "CHIP_FAMILY"
+      },
+      "sectionTracksLabel": "// SECTION_02",
+      "sectionTracksTitle": "LEARNING_TRACKS",
+      "sectionTracksAll": "ALL_LESSONS →",
+      "sectionFeaturedLabel": "// SECTION_03",
+      "sectionFeaturedTitle": "FEATURED_LESSONS",
+      "ctaSection": {
+        "prefix": "// BOOT_SEQUENCE_READY",
+        "title": "READY TO BURN YOUR FIRST FLASH?",
+        "body": "Start with lesson L00 and enjoy a complete, professional Arabic walkthrough of bare-metal RISC-V.",
+        "button": "BEGIN_AT_L00 →"
+      }
+    },
+    "tracks": {
+      "foundation": {
+        "label": "FOUNDATION",
+        "desc": "The basics"
+      },
+      "io": {
+        "label": "CORE I/O",
+        "desc": "Core inputs / outputs"
+      },
+      "comm": {
+        "label": "COMMS",
+        "desc": "Communication protocols"
+      },
+      "analog": {
+        "label": "ANALOG",
+        "desc": "ADC and DMA"
+      },
+      "pro": {
+        "label": "PRO",
+        "desc": "Professional skills"
+      },
+      "capstone": {
+        "label": "CAPSTONE",
+        "desc": "Final project"
+      }
+    },
+    "levels": {
+      "beginner": "beginner",
+      "intermediate": "intermediate",
+      "advanced": "advanced"
+    },
+    "lessons": {
+      "heading": "ALL_LESSONS",
+      "subhead": "All lessons ordered L00 → L19. Browse by track or use the search.",
+      "searchPlaceholder": "// search lessons, e.g. uart, dma, watchdog…",
+      "noMatches": "NO_MATCHES_FOUND",
+      "countSuffix": "ITEMS",
+      "minutesUnit": "M"
+    },
+    "reader": {
+      "crumbHome": "// home",
+      "crumbLessons": "// lessons",
+      "minutes": "MIN",
+      "prev": "PREV",
+      "next": "NEXT"
+    },
+    "about": {
+      "title": "ABOUT_THIS_JOURNEY",
+      "whyHeading": "Why this curriculum?",
+      "whyBody": "Most bare-metal learning resources are English-only, and most assume an STM32/ARM background. This curriculum offers a deliberate Arabic-first path from zero to professional, focused on the dirt-cheap (sub-$0.50) RISC-V CH32V003J4M6.",
+      "whoHeading": "Who is it for?",
+      "whoList": [
+        "Developers who know C basics and want to understand hardware bottom-up.",
+        "Hobbyists graduating from Arduino into register-level programming.",
+        "CS students who want hands-on RISC-V.",
+        "Anyone tired of reading and ready to actually build firmware."
+      ],
+      "howHeading": "How was it built?",
+      "howBody": "Every lesson is verified against the CH32V003 Reference Manual v1.9 (pages cited per reference). Code samples are tested on real hardware (J4M6 package). Everything is written at the register level — no HAL — but with helpful macros from ch32v003fun where useful.",
+      "licenseHeading": "License & sources",
+      "licenseList": [
+        "Content is open and free — use, share, and remix.",
+        "Source on github.com/shakir-abdo.",
+        "Contributions welcome (fixes, new lessons, translations)."
+      ],
+      "authorHeading": "Curriculum author",
+      "authorBody": "Shakir Abdo — full-stack developer from Sudan, into embedded systems and low-level tools."
+    },
+    "footer": {
+      "tagline": "Bare-metal learning curriculum for the WCH CH32V003 RISC-V chip. Written in Arabic, register-level, RM-verified.",
+      "connect": "// CONNECT",
+      "resources": "// RESOURCES",
+      "version": "v0.1.0 · ALPHA",
+      "build": "BUILD:",
+      "uptime": "UPTIME:",
+      "uptimeOk": "[STABLE]",
+      "eof": "// EOF — end of transmission",
+      "madeWith": "MADE WITH ♥ IN ARABIC"
+    },
+    "resources": {
+      "hudLabel": "// ROUTE: /resources",
+      "title": "RESOURCES",
+      "intro": "The hardware you need to follow this curriculum, plus the author's other CH32V003 work and ways to support.",
+      "hardwareSection": "// HARDWARE",
+      "hardwareSub": "Sub-$5 kit. Anything else (LED, button, breadboard, jumpers) is generic.",
+      "programmer": "Programmer",
+      "mcu": "Microcontroller",
+      "alternative": "Alternative",
+      "learnMore": "Datasheet",
+      "whyMatters": "Why it matters",
+      "wchLinkE": {
+        "name": "WCH-LinkE",
+        "role": "Programmer / Debugger",
+        "desc": "Official WCH programmer + GDB-capable debugger over SDI. Around $3 on AliExpress. Essential — without it you cannot flash the chip or recover a bricked one.",
+        "buy": "Find on AliExpress"
+      },
+      "j4m6": {
+        "name": "CH32V003J4M6 (SOP-8)",
+        "role": "Primary chip used in this curriculum",
+        "desc": "The tiniest variant — only 8 pins. Cheapest CH32V003 (~$0.30). Perfect for learning because the pin budget forces you to think."
+      },
+      "f4p6": {
+        "name": "CH32V003F4P6 (TSSOP-20)",
+        "role": "Alternative chip (more pins)",
+        "desc": "Same silicon, more breakout pins. Use it if you want to play with all peripherals at once. Slightly more expensive (~$0.50)."
+      },
+      "projectsSection": "// AUTHOR PROJECTS",
+      "projectsSub": "Related open-source work by the same author. Reuse, learn, contribute.",
+      "librariesProj": {
+        "name": "ch32v003j4m6-libraries",
+        "desc": "A growing collection of register-level libraries for the CH32V003J4M6: GPIO, ADXL345, MPU6050, AHT10, MLX90614, AS5600, Servo, WS2812B, Buzzer, AT24C32 EEPROM, internal-EEPROM emulation, deep-sleep, rotary encoder.",
+        "cta": "View on GitHub"
+      },
+      "unbrickProj": {
+        "name": "ch32v003-unbrick",
+        "desc": "CLI tool to recover a bricked CH32V003 using a WCH-LinkE. Saves you when you accidentally lock the chip.",
+        "cta": "View on GitHub"
+      },
+      "supportSection": "// SUPPORT",
+      "supportSub": "If this curriculum saves you hours, consider supporting future lessons.",
+      "personalSite": {
+        "title": "Personal site",
+        "desc": "My other projects, writing, and contact info.",
+        "cta": "shakir.sd"
+      },
+      "paypal": {
+        "title": "PayPal",
+        "desc": "A small tip helps keep this work open and free.",
+        "cta": "Donate via PayPal"
+      }
+    }
+  }
+}

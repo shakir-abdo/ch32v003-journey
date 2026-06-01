@@ -1,0 +1,38 @@
+# Compose file for local testing of the production image, and the
+# Dokploy-compatible service definition for production deployment.
+#
+# Local quick-start:
+#   echo "NUXT_UI_PRO_LICENSE=xxx" > .env   # required at build time
+#   docker compose up --build
+#
+# Then:
+#   curl http://localhost:3000/api/health
+#
+# Dokploy notes:
+#   - Dokploy parses this file as-is for "Docker Compose" application type.
+#   - Put NUXT_UI_PRO_LICENSE in Dokploy's Environment Variables panel —
+#     DO NOT commit it. The build_args reference below pulls it from those
+#     env vars at build time.
+#   - Set a domain on the `app` service in Dokploy's Domains panel.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Nuxt UI Pro license is required at build time. Dokploy + Compose
+      # both honor build args sourced from environment variables.
+      args:
+        NUXT_UI_PRO_LICENSE: ${NUXT_UI_PRO_LICENSE}
+    image: ch32v003-journey:latest
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    healthcheck:
+      # Override the image-level healthcheck so it shows up in `docker ps`
+      # with friendly intervals.
+      test: ['CMD', 'wget', '--spider', '--quiet', 'http://127.0.0.1:3000/api/health']
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
