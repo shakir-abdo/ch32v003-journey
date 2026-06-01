@@ -52,3 +52,13 @@ README.md
 !app/**/*.md
 !server/**/*.md
 !i18n/**/*.md
+!content/**/*.md          # lesson markdown MUST stay in the image
+LICENSE
+LICENSE-CONTENT
+
+# Stale lockfile from the npm-based template — we use pnpm-lock.yaml
+package-lock.json
+auth.d.ts
+skills-lock.json
+CLAUDE.md
+skills/

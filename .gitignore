@@ -46,3 +46,6 @@ Thumbs.db
 # Local production builds
 .output
 .nitro
+
+# We use pnpm — package-lock.json is stale
+package-lock.json
