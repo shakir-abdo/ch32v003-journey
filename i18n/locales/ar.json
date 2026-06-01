@@ -781,7 +781,7 @@
       "heroLine2Pre": "CH32V003",
       "heroLine2Post": "JOURNEY",
       "intro": "منهج عربي متدرّج من {n} يأخذك من أول Blinky إلى بناء firmware احترافي على متحكم CH32V003 — كل شيء على مستوى السجلات، مع مراجع Reference Manual في كل خطوة.",
-      "introBold": "20 درساً",
+      "introBold": "22 درساً",
       "ctaStart": "ابدأ التعلّم",
       "ctaCurriculum": "الخريطة الكاملة",
       "ctaGithub": "GITHUB",

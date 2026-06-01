@@ -3,7 +3,7 @@
 > Arabic-first bare-metal RISC-V curriculum for the WCH **CH32V003J4M6**.
 > Live at **[ch32v003.shakir.sd](https://ch32v003.shakir.sd)**.
 
-A structured, 20-lesson journey from your first Blinky to building production-grade firmware on a 30-cent RISC-V chip — written at the register level, with **CH32V003 Reference Manual v1.9** cross-references on every page.
+A structured, 22-lesson journey from your first Blinky to building production-grade firmware on a 30-cent RISC-V chip — written at the register level, with **CH32V003 Reference Manual v1.9** cross-references on every page.
 
 ![CH32V003 Journey screenshot](./public/og.png)
 
@@ -50,7 +50,7 @@ app/
   layouts/       # default cyberpunk layout
   assets/main.css # cyberpunk design tokens
 content/
-  lessons/       # 20 markdown lessons (L00..L19)
+  lessons/       # 22 markdown lessons (L00..L21)
 i18n/locales/    # en.json, ar.json
 public/
   hardware/      # WCH-LinkE + chip images

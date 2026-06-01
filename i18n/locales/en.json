@@ -781,7 +781,7 @@
       "heroLine2Pre": "CH32V003",
       "heroLine2Post": "JOURNEY",
       "intro": "A structured Arabic-first curriculum of {n} lessons that walks you from your first Blinky to building production-grade firmware for the CH32V003 — all at the register level, with Reference Manual cross-references at every step.",
-      "introBold": "20 lessons",
+      "introBold": "22 lessons",
       "ctaStart": "START_LEARNING",
       "ctaCurriculum": "VIEW_CURRICULUM",
       "ctaGithub": "GITHUB",

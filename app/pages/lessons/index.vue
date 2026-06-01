@@ -7,8 +7,8 @@ useSeoMeta({
     ? 'الدروس · CH32V003 Journey'
     : 'Lessons · CH32V003 Journey',
   description: () => locale.value === 'ar'
-    ? '20 درساً متدرّجاً لتعلّم البرمجة العتادية على CH32V003.'
-    : '20 progressive lessons for bare-metal CH32V003 programming.'
+    ? '22 درساً متدرّجاً لتعلّم البرمجة العتادية على CH32V003.'
+    : '22 progressive lessons for bare-metal CH32V003 programming.'
 })
 
 const {data: lessons} = await useAsyncData('lessons-list', () =>
