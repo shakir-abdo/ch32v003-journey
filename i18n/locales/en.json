@@ -937,6 +937,13 @@
         "desc": "A small tip helps keep this work open and free.",
         "cta": "Donate via PayPal"
       }
+    },
+    "resume": {
+      "headline": "Pick up where you left off",
+      "sub": "Last reading session",
+      "cta": "Continue lesson",
+      "dismiss": "Dismiss",
+      "progress": "progress"
     }
   }
 }

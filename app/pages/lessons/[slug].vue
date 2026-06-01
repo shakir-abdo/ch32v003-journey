@@ -43,6 +43,64 @@ const tColor = computed(() => trackColor[lesson.value!.track] ?? '#00F0FF')
 
 const titleField    = computed(() => locale.value === 'ar' ? 'title' : 'title_en')
 const subtitleField = computed(() => locale.value === 'ar' ? 'title_en' : 'title')
+
+// ─── Progress tracking ───────────────────────────────────────────────────
+// Save current scroll position (throttled) and restore it when the learner
+// reopens the same lesson. Tracked per-slug in localStorage.
+const {progress, save: saveProgress} = useLessonProgress()
+
+let lastScrollSaveAt = 0
+let scrollListener: (() => void) | null = null
+let visitStart = 0
+
+function computeAndSave() {
+  if (typeof window === 'undefined') return
+  const y = window.scrollY
+  const docH = document.documentElement.scrollHeight - window.innerHeight
+  const pct = docH > 0 ? (y / docH) * 100 : 0
+  saveProgress(slug.value, y, pct)
+}
+
+function onScroll() {
+  const now = performance.now()
+  // throttle: at most every 400ms
+  if (now - lastScrollSaveAt < 400) return
+  lastScrollSaveAt = now
+  computeAndSave()
+}
+
+onMounted(() => {
+  visitStart = Date.now()
+
+  // Restore scroll if returning to the same lesson AND the saved entry
+  // isn't ancient (older than 30 days = stale, ignore).
+  if (progress.value && progress.value.slug === slug.value) {
+    const ageDays = (Date.now() - progress.value.timestamp) / (1000 * 60 * 60 * 24)
+    if (ageDays < 30 && progress.value.scrollY > 100) {
+      // Wait a tick for ContentRenderer to paint, then jump
+      nextTick(() => {
+        setTimeout(() => {
+          window.scrollTo({top: progress.value!.scrollY, behavior: 'auto'})
+        }, 80)
+      })
+    }
+  }
+
+  scrollListener = onScroll
+  window.addEventListener('scroll', scrollListener, {passive: true})
+})
+
+onBeforeUnmount(() => {
+  if (scrollListener) {
+    window.removeEventListener('scroll', scrollListener)
+    scrollListener = null
+  }
+  // Only commit a final save if the learner spent at least 3 seconds on
+  // the page — avoids polluting "resume" with accidental fly-bys.
+  if (Date.now() - visitStart > 3000) {
+    computeAndSave()
+  }
+})
 </script>
 
 <template>
@@ -72,7 +130,7 @@ const subtitleField = computed(() => locale.value === 'ar' ? 'title_en' : 'title
         </span>
       </div>
       <div class="flex items-start gap-4">
-        <UIcon :name="lesson?.icon" class="size-8 shrink-0 mt-1" :style="{color: tColor}" />
+        <UIcon :name="lesson?.icon || 'i-lucide-book-open'" class="size-8 shrink-0 mt-1" :style="{color: tColor}" />
         <div class="flex-1 min-w-0">
           <h1 class="font-display text-2xl sm:text-3xl font-bold text-[var(--cy-fg)] leading-tight" :dir="isRtl ? 'rtl' : 'ltr'">
             {{ (lesson as any)[titleField] }}

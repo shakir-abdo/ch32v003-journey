@@ -58,6 +58,29 @@ const groups = computed(() => {
 
 const titleField    = computed(() => locale.value === 'ar' ? 'title' : 'title_en')
 const subtitleField = computed(() => locale.value === 'ar' ? 'title_en' : 'title')
+
+// ─── Resume card ─────────────────────────────────────────────────────────
+// Hydrate from localStorage on client only; SSR renders empty card slot.
+const {progress, clear: clearProgress, formatAge} = useLessonProgress()
+
+// Resolve the lesson object for the saved slug so we can show its title +
+// icon + track color in the card.
+const resumeLesson = computed(() => {
+  if (!progress.value || !lessons.value) return null
+  const found = lessons.value.find((l) => l.slug === progress.value!.slug)
+  if (!found) return null
+  // Age out anything older than 30 days
+  const ageDays = (Date.now() - progress.value.timestamp) / (1000 * 60 * 60 * 24)
+  if (ageDays > 30) return null
+  return found
+})
+
+const resumeAge = computed(() =>
+  progress.value ? formatAge(locale.value === 'ar' ? 'ar' : 'en') : ''
+)
+const resumeColor = computed(() =>
+  resumeLesson.value ? trackColor[resumeLesson.value.track] ?? '#00F0FF' : '#00F0FF'
+)
 </script>
 
 <template>
@@ -74,6 +97,88 @@ const subtitleField = computed(() => locale.value === 'ar' ? 'title_en' : 'title
         {{ t('app.lessons.subhead') }}
       </p>
     </header>
+
+    <!-- Resume card — only when the learner has a saved (non-stale) progress -->
+    <ClientOnly>
+      <NuxtLink
+        v-if="resumeLesson && progress"
+        :to="`/lessons/${resumeLesson.slug}`"
+        class="cy-panel mb-8 p-5 grid gap-4 group hover:no-underline relative overflow-hidden"
+        :style="{borderColor: resumeColor + '55'}"
+      >
+        <!-- ambient glow tinted by the lesson's track color -->
+        <div
+          class="absolute inset-0 pointer-events-none opacity-30"
+          :style="{background: `radial-gradient(circle at 20% 50%, ${resumeColor}22 0%, transparent 70%)`}"
+        />
+
+        <div class="relative flex items-center gap-4">
+          <!-- Icon -->
+          <div
+            class="shrink-0 size-14 grid place-items-center border rounded-[4px]"
+            :style="{
+              borderColor: resumeColor + '55',
+              background: resumeColor + '12'
+            }"
+          >
+            <UIcon :name="resumeLesson.icon || 'i-lucide-book-open'" class="size-7" :style="{color: resumeColor}" />
+          </div>
+
+          <!-- Body -->
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap mb-1" dir="ltr">
+              <span
+                class="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-[2px] border"
+                :style="{color: resumeColor, borderColor: resumeColor + '55', background: resumeColor + '0E'}"
+              >
+                {{ t('app.resume.headline') }}
+              </span>
+              <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--cy-fg-muted)]">
+                · {{ resumeAge }}
+              </span>
+            </div>
+            <div class="font-display text-base sm:text-lg font-semibold text-[var(--cy-fg)] group-hover:text-[var(--cy-primary)] transition-colors truncate" :dir="isRtl ? 'rtl' : 'ltr'">
+              L{{ String(resumeLesson.order).padStart(2, '0') }} · {{ (resumeLesson as any)[titleField] }}
+            </div>
+            <div class="font-mono text-[11px] text-[var(--cy-fg-muted)] mt-0.5" dir="ltr">
+              {{ Math.round(progress.scrollPercent) }}% {{ t('app.resume.progress') }}
+            </div>
+          </div>
+
+          <!-- CTA -->
+          <div class="hidden sm:flex flex-col items-end gap-2 shrink-0" dir="ltr">
+            <span
+              class="cy-btn"
+              :style="{color: resumeColor, borderColor: resumeColor + '66'}"
+            >
+              {{ t('app.resume.cta') }}
+              <UIcon :name="isRtl ? 'i-lucide-arrow-left' : 'i-lucide-arrow-right'" class="size-3.5" />
+            </span>
+            <button
+              type="button"
+              class="font-mono text-[10px] uppercase tracking-wider text-[var(--cy-fg-muted)] hover:text-[var(--cy-destructive)] transition-colors"
+              :title="t('app.resume.dismiss')"
+              @click.stop.prevent="clearProgress()"
+            >
+              ✕ {{ t('app.resume.dismiss') }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="relative h-1 bg-[var(--cy-muted)] rounded-[1px] overflow-hidden">
+          <div
+            class="absolute inset-y-0 transition-all"
+            :style="{
+              [isRtl ? 'right' : 'left']: '0',
+              width: `${progress.scrollPercent}%`,
+              background: resumeColor,
+              boxShadow: `0 0 8px ${resumeColor}`
+            }"
+          />
+        </div>
+      </NuxtLink>
+    </ClientOnly>
 
     <!-- Search -->
     <div class="mb-8 relative max-w-md" dir="ltr">
