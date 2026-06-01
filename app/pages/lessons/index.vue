@@ -34,6 +34,7 @@ const trackColor: Record<string, string> = {
   comm:       '#B14AED',
   analog:     '#FFB800',
   pro:        '#FF2E97',
+  bonus:      '#FFB347',
   capstone:   '#FF2E5E'
 }
 
@@ -50,7 +51,7 @@ const groups = computed(() => {
   }
   return Object.entries(buckets)
     .sort(([a], [b]) => {
-      const order = ['foundation', 'io', 'comm', 'analog', 'pro', 'capstone']
+      const order = ['foundation', 'io', 'comm', 'analog', 'pro', 'bonus', 'capstone']
       return order.indexOf(a) - order.indexOf(b)
     })
 })

@@ -35,6 +35,7 @@ const trackColor: Record<string, string> = {
   comm:       '#B14AED',
   analog:     '#FFB800',
   pro:        '#FF2E97',
+  bonus:      '#FFB347',
   capstone:   '#FF2E5E'
 }
 

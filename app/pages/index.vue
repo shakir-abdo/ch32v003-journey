@@ -15,9 +15,9 @@ const {data: lessons} = await useAsyncData('lessons-home', () =>
   queryCollection('lessons').order('order', 'ASC').all()
 )
 
-const trackIds = ['foundation', 'io', 'comm', 'analog', 'pro', 'capstone'] as const
+const trackIds = ['foundation', 'io', 'comm', 'analog', 'pro', 'bonus', 'capstone'] as const
 const trackCounts: Record<typeof trackIds[number], number> = {
-  foundation: 4, io: 5, comm: 3, analog: 2, pro: 5, capstone: 1
+  foundation: 4, io: 5, comm: 3, analog: 2, pro: 5, bonus: 2, capstone: 1
 }
 const trackColors: Record<typeof trackIds[number], string> = {
   foundation: '#00F0FF',
@@ -25,13 +25,14 @@ const trackColors: Record<typeof trackIds[number], string> = {
   comm:       '#B14AED',
   analog:     '#FFB800',
   pro:        '#FF2E97',
+  bonus:      '#FFB347',
   capstone:   '#FF2E5E'
 }
 
 const statKeys = ['lessons', 'tracks', 'language', 'chip'] as const
 const statValues: Record<typeof statKeys[number], string> = {
-  lessons: '20',
-  tracks:  '06',
+  lessons: '22',
+  tracks:  '07',
   language: locale.value === 'ar' ? 'عربي' : 'AR',
   chip: 'CH32V003'
 }

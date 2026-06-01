@@ -827,6 +827,10 @@
       "capstone": {
         "label": "CAPSTONE",
         "desc": "Final project"
+      },
+      "bonus": {
+        "label": "BONUS",
+        "desc": "Advanced techniques"
       }
     },
     "levels": {

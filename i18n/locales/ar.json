@@ -827,6 +827,10 @@
       "capstone": {
         "label": "المشروع النهائي",
         "desc": "لوحة LED + UART"
+      },
+      "bonus": {
+        "label": "إضافي",
+        "desc": "تقنيات متقدّمة"
       }
     },
     "levels": {

@@ -1,6 +1,6 @@
 ---
-order: 19
-slug: "l19-final-project"
+order: 21
+slug: "l21-final-project"
 title: "المشروع النهائي — لوحة LED + UART"
 title_en: "Final Project — LED Matrix + UART"
 icon: "i-lucide-flag"
@@ -10,7 +10,7 @@ minutes: 90
 tags: ["project"]
 ---
 
-# الدرس 19: المشروع النهائي — لوحة عرض LED بتحكم UART
+# الدرس 21: المشروع النهائي — لوحة عرض LED بتحكم UART
 
 > **العتاد المطلوب:**
 > - CH32V003J4M6

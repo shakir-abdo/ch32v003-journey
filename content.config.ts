@@ -11,7 +11,7 @@ export default defineContentConfig({
         title: z.string(),
         title_en: z.string(),
         icon: z.string(),
-        track: z.enum(['foundation', 'io', 'comm', 'analog', 'pro', 'capstone']),
+        track: z.enum(['foundation', 'io', 'comm', 'analog', 'pro', 'bonus', 'capstone']),
         level: z.enum(['beginner', 'intermediate', 'advanced']),
         minutes: z.number(),
         tags: z.array(z.string())
