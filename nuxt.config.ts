@@ -86,12 +86,14 @@ export default defineNuxtConfig({
         {property: 'og:url', content: "https://ch32v003.shakir.sd/"},
         {property: 'og:description', content: "Master bare-metal RISC-V programming, one register at a time."},
         {property: 'og:type', content: 'product'},
-        {property: 'og:image', content: "https://ch32v003.shakir.sd/icon.png"},
-        {property: 'twitter:card', content: 'summary'},
+        {property: 'og:image', content: "https://ch32v003.shakir.sd/og.png"},
+        {property: 'og:image:width', content: '1810'},
+        {property: 'og:image:height', content: '1357'},
+        {property: 'twitter:card', content: 'summary_large_image'},
         {property: 'twitter:url', content: "https://ch32v003.shakir.sd/"},
         {property: 'twitter:title', content: "CH32V003 Journey"},
         {property: 'twitter:description', content: "Master bare-metal RISC-V programming, one register at a time."},
-        {property: 'twitter:image', content: "https://ch32v003.shakir.sd/icon.png"}
+        {property: 'twitter:image', content: "https://ch32v003.shakir.sd/og.png"}
       ],
       link: [
         {rel: 'icon', type: 'image/x-icon', href: '/favicon.ico'},
