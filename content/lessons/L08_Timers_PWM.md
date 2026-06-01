@@ -3,7 +3,7 @@ order: 8
 slug: "l08-timers-pwm"
 title: "المؤقّتات (TIM1/TIM2) و PWM"
 title_en: "Timers + PWM"
-icon: "i-lucide-waveform"
+icon: "i-lucide-activity"
 track: "io"
 level: "beginner"
 minutes: 30
