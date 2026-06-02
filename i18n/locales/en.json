@@ -819,6 +819,7 @@
       "ctrl": {
         "compile": "Compile",
         "run": "Run",
+        "resume": "Resume",
         "pause": "Pause",
         "step": "Step",
         "reset": "Reset",

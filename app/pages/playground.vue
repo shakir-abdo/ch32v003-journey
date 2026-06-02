@@ -16,7 +16,7 @@ useSeoMeta({
 
 const {
   registers, pins, consoleEntries, activeLineRange,
-  running, halted, speedMs, lastChangedRegister,
+  running, halted, paused, speedMs, lastChangedRegister,
   compile, step, run, pause, reset, clearConsole, manualWrite
 } = useSimulator()
 
@@ -197,6 +197,7 @@ function onManualWrite(address: number, value: number) {
         v-model:speed-ms="speedMs"
         :running="running"
         :halted="halted"
+        :paused="paused"
         @run="onRun"
         @pause="onPause"
         @step="onStep"

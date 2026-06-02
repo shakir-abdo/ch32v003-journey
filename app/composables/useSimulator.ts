@@ -56,6 +56,8 @@ export function useSimulator() {
   const interpreterReady = ref(false)
   const halted     = ref(false)
   const running    = ref(false)
+  /** True after the interpreter has executed at least one step and is not currently running — i.e. paused. Distinguishes "Run" (fresh) from "Resume". */
+  const paused     = ref(false)
   /** Per-step interval in ms. Read live by run() so the slider takes effect immediately. */
   const speedMs    = ref(800)
   /** Name of the register most recently touched — drives the auto-scroll. */
@@ -112,6 +114,7 @@ export function useSimulator() {
       for (const w of warnings) log('warn', w)
       interpreterReady.value = true
       halted.value = false
+      paused.value = false  // fresh compile — no step has fired yet
       activeLineRange.value = null
       log('info', `compiled ${macros.size} macros + main()${program.main ? '' : ' [no main]'}`)
       return true
@@ -135,9 +138,16 @@ export function useSimulator() {
     }
     try {
       const r = interpreter!.step()
-      if (!r) { halted.value = true; activeLineRange.value = null; log('info', 'halt — end of program'); return false }
+      if (!r) {
+        halted.value = true
+        paused.value = false
+        activeLineRange.value = null
+        log('info', 'halt — end of program')
+        return false
+      }
       applyStepDiff(r.writes, r.pinChanges)
       activeLineRange.value = r.lineRange
+      paused.value = true   // we've made progress — next Run is a Resume
       if (r.log) log('info', r.log)
       return true
     } catch (e) {
@@ -179,6 +189,7 @@ export function useSimulator() {
         const r = interpreter.step()
         if (!r) {
           running.value = false
+          paused.value = false   // halted — there's nothing to resume from
           halted.value = true
           activeLineRange.value = null
           log('info', 'halt — end of program')
@@ -186,6 +197,7 @@ export function useSimulator() {
         }
         applyStepDiff(r.writes, r.pinChanges)
         activeLineRange.value = r.lineRange
+        paused.value = true   // mid-execution → next Run is a Resume
         if (r.log) log('info', r.log)
         // Read speedMs live each tick so the slider takes effect immediately.
         runTimer = setTimeout(tick, speedMs.value)
@@ -200,6 +212,8 @@ export function useSimulator() {
   function pause() {
     running.value = false
     if (runTimer) { clearTimeout(runTimer); runTimer = null }
+    // If we've actually stepped something, mark as paused for the Resume label.
+    if (interpreter && interpreterReady.value && !halted.value) paused.value = true
   }
 
   function reset() {
@@ -208,6 +222,7 @@ export function useSimulator() {
     interpreter = null
     interpreterReady.value = false
     halted.value = false
+    paused.value = false
     activeLineRange.value = null
     consoleEntries.value = [{level: 'info', msg: 'simulator reset.'}]
     flushSnapshot()
@@ -238,6 +253,7 @@ export function useSimulator() {
     interpreterReady,
     halted,
     running,
+    paused,
     speedMs,
     lastChangedRegister,
     compile,

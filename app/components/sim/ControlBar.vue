@@ -5,6 +5,8 @@ const isRtl = computed(() => locale.value === 'ar')
 const props = defineProps<{
   running?: boolean
   halted?: boolean
+  /** True once the interpreter has been created and stepped at least once — distinguishes "Run" (fresh) from "Resume" (paused). */
+  paused?: boolean
   speedMs: number
 }>()
 
@@ -23,17 +25,22 @@ const speed = computed({
 })
 
 /**
- * Run and Pause are mutually exclusive — fold them into one toggle button.
- * The button's role flips based on `running`:
- *   - running=false  →  Play icon + "Run" label, emits 'run'
- *   - running=true   →  Pause icon + "Pause" label, emits 'pause'
- * When halted, the button still shows Play but is disabled (the user has to
- * Reset to start again).
+ * Run / Pause / Resume — three states:
+ *   - running=false, paused=false  →  "Run"    (fresh start, green)
+ *   - running=true                 →  "Pause"  (amber)
+ *   - running=false, paused=true   →  "Resume" (continue from pause, cyan-green)
+ * When halted the button still shows Run/Resume but is disabled — the
+ * learner has to Reset before starting again.
  */
-const playPause = computed(() => props.running
-  ? {icon: 'i-lucide-pause', label: t('app.sim.ctrl.pause'), color: 'var(--cy-warning)',  emit: 'pause' as const, disabled: false}
-  : {icon: 'i-lucide-play',  label: t('app.sim.ctrl.run'),   color: 'var(--cy-success)',  emit: 'run' as const,   disabled: props.halted === true}
-)
+const playPause = computed(() => {
+  if (props.running) {
+    return {icon: 'i-lucide-pause', label: t('app.sim.ctrl.pause'), color: 'var(--cy-warning)', emit: 'pause' as const, disabled: false}
+  }
+  if (props.paused === true) {
+    return {icon: 'i-lucide-play', label: t('app.sim.ctrl.resume'), color: 'var(--cy-success)', emit: 'run' as const, disabled: props.halted === true}
+  }
+  return {icon: 'i-lucide-play', label: t('app.sim.ctrl.run'), color: 'var(--cy-success)', emit: 'run' as const, disabled: props.halted === true}
+})
 
 const buttons = computed(() => [
   {key: 'compile',  icon: 'i-lucide-hammer',       label: t('app.sim.ctrl.compile'), color: 'var(--cy-track-pro, #B14AED)', emit: 'compile' as const, disabled: props.running === true},
