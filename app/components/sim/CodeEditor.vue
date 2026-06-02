@@ -176,10 +176,17 @@ watch(() => colorMode.value, (mode) => {
 </template>
 
 <style>
-/* Make CM6 fill the panel + dim its default chrome to match the cyberpunk theme. */
+/* Make CM6 fill the panel + override OneDark's chrome so the editor blends
+   with the cyberpunk panel rather than introducing a lighter slate-grey
+   rectangle. */
 .cm-editor {
   height: 100%;
+  background: var(--cy-card) !important;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+.cm-editor .cm-scroller,
+.cm-editor .cm-content {
+  background: var(--cy-card) !important;
 }
 .cm-editor.cm-focused {
   outline: none;
@@ -188,7 +195,7 @@ watch(() => colorMode.value, (mode) => {
   line-height: 1.55;
 }
 .cm-editor .cm-gutters {
-  background: var(--cy-shell);
+  background: var(--cy-shell) !important;
   border-right: 1px solid var(--cy-border);
   color: var(--cy-fg-muted);
 }
@@ -197,7 +204,7 @@ watch(() => colorMode.value, (mode) => {
   background-color: transparent;
 }
 .cm-editor .cm-sim-active-line + .cm-activeLine {
-  background-color: rgba(0, 240, 255, 0.10);
+  background-color: color-mix(in srgb, var(--cy-primary) 14%, transparent);
 }
 .cm-editor .cm-sim-active-line .cm-gutterElement,
 .cm-editor .cm-sim-active-line.cm-gutterElement {
