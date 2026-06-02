@@ -24,7 +24,12 @@ Out of scope for v1: SysTick, EXTI, TIM, UART, SPI, I2C, ADC, interrupts, pointe
     - `ADC` for analog input
     - `HI-Z` when port clock is off or pin not configured
     - `VCC` / `GND` for the two power pins (static labels)
-  - **Right**: register inspector — **all** simulated registers listed with current 32-bit value (hex + binary), each bit field labelled per the RM. Last-written register flashes; changed bits highlighted.
+  - **Right**: register inspector — **all** simulated registers listed. Each register row shows:
+    - **Name + hex value** (e.g. `RCC_APB2PCENR  0x00000010`)
+    - **32 individual bit cells**, MSB→LSB, each cell is a small square showing `0` or `1`. Bit position numbers above (`31 30 29 … 1 0`).
+    - **Field labels** under groups of bits per the RM (e.g. for `GPIOC_CFGLR`: `CNF7|MODE7 | CNF6|MODE6 | … | CNF0|MODE0`).
+    - **Real-time bit-level highlighting**: when a step changes the register, only the bits that flipped flash (green = 0→1, red = 1→0) for ~600 ms then settle. This is the centrepiece — the learner should *see* which bits the line they just executed turned on or off.
+  - Both panels (pin status + register inspector) update inside the same step transaction so a pin going HIGH and the bit in `OUTDR` flipping are visually synchronised.
 - **Bottom strip**: control bar (Run / Step / Pause / Reset / speed slider) + console for errors and informational messages.
 
 ## Engine architecture
@@ -61,7 +66,24 @@ Built-ins (host-provided): `Delay_Ms(ms)`, `Delay_Us(us)` — advance simulated 
 
 ### Interpreter contract
 
-`step()` → executes one statement → returns `{lineRange, writes: RegisterWrite[], pinChanges: PinChange[], log?: string}`. UI consumes the diff to animate.
+`step()` → executes one statement → returns:
+
+```ts
+{
+  lineRange: [start, end],
+  writes: Array<{
+    register: string,        // e.g. "RCC_APB2PCENR"
+    address: number,
+    oldValue: number,
+    newValue: number,
+    bitsFlipped: number[]    // exact bit positions that changed — drives the per-bit flash animation
+  }>,
+  pinChanges: Array<{pin: string, oldStatus: PinStatus, newStatus: PinStatus}>,
+  log?: string
+}
+```
+
+The UI consumes this diff and animates each flipped bit (red/green) and each pin status badge synchronously.
 
 MMIO writes detected by address range:
 - `0x40021000–0x4002103F` → RCC
