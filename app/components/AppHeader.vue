@@ -27,6 +27,11 @@ const otherLocale = computed(() => {
 
 const isRtl = computed(() => locale.value === 'ar')
 const isDark = computed(() => colorMode.value === 'dark')
+
+// Mobile drawer
+const mobileOpen = ref(false)
+// Close drawer when the route changes (user tapped a link).
+watch(() => route.fullPath, () => { mobileOpen.value = false })
 </script>
 
 <template>
@@ -39,6 +44,7 @@ const isDark = computed(() => colorMode.value === 'dark')
         </span>
       </NuxtLink>
 
+      <!-- Desktop nav -->
       <nav class="hidden md:flex items-center gap-1">
         <NuxtLink
           v-for="item in navItems"
@@ -66,6 +72,17 @@ const isDark = computed(() => colorMode.value === 'dark')
       </nav>
 
       <div class="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-[var(--cy-fg-muted)]">
+        <!-- Burger (mobile only) -->
+        <button
+          type="button"
+          class="md:hidden size-7 grid place-items-center border border-[var(--cy-border)] hover:border-[var(--cy-border-strong)] hover:text-[var(--cy-primary)] transition-colors rounded-[2px]"
+          :aria-label="mobileOpen ? 'Close menu' : 'Open menu'"
+          :aria-expanded="mobileOpen"
+          @click="mobileOpen = !mobileOpen"
+        >
+          <UIcon :name="mobileOpen ? 'i-lucide-x' : 'i-lucide-menu'" class="size-3.5" />
+        </button>
+
         <button
           type="button"
           class="size-7 grid place-items-center border border-[var(--cy-border)] hover:border-[var(--cy-border-strong)] hover:text-[var(--cy-primary)] transition-colors rounded-[2px]"
@@ -91,5 +108,45 @@ const isDark = computed(() => colorMode.value === 'dark')
         <span class="hidden sm:inline text-[var(--cy-primary)]">{{ t('app.header.status') }}</span>
       </div>
     </div>
+
+    <!-- Mobile drawer -->
+    <Transition
+      enter-active-class="transition-all duration-200 ease-out"
+      enter-from-class="opacity-0 -translate-y-2"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition-all duration-150 ease-in"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 -translate-y-2"
+    >
+      <nav
+        v-if="mobileOpen"
+        class="md:hidden border-t border-[var(--cy-border)] bg-[var(--cy-shell)] px-4 py-3 flex flex-col gap-1"
+        :dir="isRtl ? 'rtl' : 'ltr'"
+      >
+        <NuxtLink
+          v-for="item in navItems"
+          :key="item.to"
+          :to="item.to"
+          class="px-3 py-2.5 font-mono text-[12px] uppercase tracking-wider transition-all border-s-2 rounded-[2px] flex items-center gap-2"
+          :class="[
+            isActive(item)
+              ? 'text-[var(--cy-primary)] border-[var(--cy-primary)] bg-[var(--cy-primary)]/5'
+              : 'text-[var(--cy-fg-muted)] border-transparent hover:text-[var(--cy-fg)] hover:bg-[var(--cy-muted)]/40'
+          ]"
+          @click="mobileOpen = false"
+        >
+          {{ item.label }}
+          <span
+            v-if="(item as any).beta"
+            class="font-mono text-[8px] tracking-wider px-1 py-px rounded-[1px] border"
+            :style="{
+              color: 'var(--cy-warning)',
+              borderColor: 'var(--cy-warning)',
+              background: 'rgba(255,184,0,0.08)'
+            }"
+          >BETA</span>
+        </NuxtLink>
+      </nav>
+    </Transition>
   </header>
 </template>

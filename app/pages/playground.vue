@@ -64,6 +64,22 @@ function onManualWrite(address: number, value: number) {
       </p>
     </header>
 
+    <!-- Mobile / narrow-screen notice — the simulator needs a wide canvas to be useful -->
+    <div class="lg:hidden cy-panel p-8 text-center" :dir="isRtl ? 'rtl' : 'ltr'">
+      <UIcon name="i-lucide-monitor" class="size-12 mx-auto mb-4 text-[var(--cy-primary)]" />
+      <h2 class="font-display text-xl font-bold text-[var(--cy-fg)] mb-2 uppercase">
+        {{ t('app.sim.mobileBlock.title') }}
+      </h2>
+      <p class="text-[var(--cy-fg-muted)] leading-relaxed max-w-md mx-auto">
+        {{ t('app.sim.mobileBlock.body') }}
+      </p>
+      <div class="mt-6 font-mono text-[10px] uppercase tracking-wider text-[var(--cy-fg-muted)]" dir="ltr">
+        // {{ t('app.sim.mobileBlock.hint') }}
+      </div>
+    </div>
+
+    <!-- Simulator UI — visible on lg+ only -->
+    <div class="hidden lg:block">
     <!-- Preset picker -->
     <div class="mb-4">
       <SimPresetMenu @load="loadPreset" />
@@ -110,5 +126,6 @@ function onManualWrite(address: number, value: number) {
     <div class="h-48">
       <SimConsole :entries="consoleEntries" @clear="clearConsole" />
     </div>
+    </div><!-- /lg:block -->
   </div>
 </template>

@@ -799,6 +799,11 @@
         "button": "Try in the playground",
         "title": "Open this lesson inside the simulator and watch the bits flip."
       },
+      "mobileBlock": {
+        "title": "Playground is desktop-only",
+        "body": "The 32-bit register grid, code editor, and chip diagram need a wide canvas. Please open this page on a laptop or desktop for the full experience.",
+        "hint": "minimum width: 1024px"
+      },
       "console": {
         "label": "Console",
         "empty": "// no messages yet.",
