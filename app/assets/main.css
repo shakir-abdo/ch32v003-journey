@@ -51,6 +51,7 @@ html:not(.light) {
   --cy-border-strong: rgba(0, 240, 255, 0.28);
   --cy-grid-line: rgba(0, 240, 255, 0.025);
   --cy-code-bg: #0A0A12;
+  --cy-track-pro: #B14AED;
 }
 
 /* ── Light mode — readable inverted palette, keeps neon accents ── */
@@ -72,6 +73,7 @@ html.light {
   --cy-border-strong: rgba(0, 100, 130, 0.32);
   --cy-grid-line: rgba(0, 100, 130, 0.04);
   --cy-code-bg: #F1F3F8;
+  --cy-track-pro: #7B27A8;        /* darker purple for light bg */
 }
 
 html, body {

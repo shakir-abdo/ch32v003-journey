@@ -23,13 +23,25 @@ const speed = computed({
   set: (v) => emit('update:speedMs', v)
 })
 
+// Use CSS-variable colours so the buttons stay legible on both light and
+// dark themes. The compile track-purple lives outside the cy-* palette,
+// so we keep it as a literal but darken it for light mode via color-mix.
 const buttons = computed(() => [
-  {key: 'compile', icon: 'i-lucide-hammer',       label: t('app.sim.ctrl.compile'), color: '#B14AED', emit: 'compile' as const, disabled: props.running},
-  {key: 'run',     icon: 'i-lucide-play',         label: t('app.sim.ctrl.run'),     color: '#00FF9F', emit: 'run' as const,     disabled: props.running || props.halted},
-  {key: 'pause',   icon: 'i-lucide-pause',        label: t('app.sim.ctrl.pause'),   color: '#FFB800', emit: 'pause' as const,   disabled: !props.running},
-  {key: 'step',    icon: 'i-lucide-step-forward', label: t('app.sim.ctrl.step'),    color: '#00F0FF', emit: 'step' as const,    disabled: props.running || props.halted || props.canStep === false},
-  {key: 'reset',   icon: 'i-lucide-rotate-ccw',   label: t('app.sim.ctrl.reset'),   color: '#FF2E5E', emit: 'reset' as const,   disabled: false}
+  {key: 'compile', icon: 'i-lucide-hammer',       label: t('app.sim.ctrl.compile'), color: 'var(--cy-track-pro, #B14AED)', emit: 'compile' as const, disabled: props.running},
+  {key: 'run',     icon: 'i-lucide-play',         label: t('app.sim.ctrl.run'),     color: 'var(--cy-success)',             emit: 'run' as const,     disabled: props.running || props.halted},
+  {key: 'pause',   icon: 'i-lucide-pause',        label: t('app.sim.ctrl.pause'),   color: 'var(--cy-warning)',             emit: 'pause' as const,   disabled: !props.running},
+  {key: 'step',    icon: 'i-lucide-step-forward', label: t('app.sim.ctrl.step'),    color: 'var(--cy-primary)',             emit: 'step' as const,    disabled: props.running || props.halted || props.canStep === false},
+  {key: 'reset',   icon: 'i-lucide-rotate-ccw',   label: t('app.sim.ctrl.reset'),   color: 'var(--cy-destructive)',         emit: 'reset' as const,   disabled: false}
 ])
+
+/** Tinted border / background derived from a CSS-variable colour token. */
+function btnStyle(color: string) {
+  return {
+    color,
+    borderColor: `color-mix(in srgb, ${color} 45%, transparent)`,
+    background:  `color-mix(in srgb, ${color} 10%, transparent)`
+  }
+}
 </script>
 
 <template>
@@ -40,11 +52,7 @@ const buttons = computed(() => [
       type="button"
       :disabled="b.disabled"
       class="inline-flex items-center gap-2 px-3 py-1.5 border rounded-[2px] font-mono text-[11px] uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-      :style="{
-        color: b.color,
-        borderColor: b.color + '55',
-        background: b.color + '0E'
-      }"
+      :style="btnStyle(b.color)"
       @click="emit(b.emit)"
     >
       <UIcon :name="b.icon" class="size-3.5" />

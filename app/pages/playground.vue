@@ -163,7 +163,11 @@ function onManualWrite(address: number, value: number) {
           type="button"
           :disabled="!hasUnsavedEdits"
           class="inline-flex items-center gap-1.5 px-2.5 py-1.5 border rounded-[2px] font-mono text-[10px] uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-          :style="{color: 'var(--cy-warning)', borderColor: 'var(--cy-warning)55', background: 'rgba(255,184,0,0.06)'}"
+          :style="{
+            color: 'var(--cy-warning)',
+            borderColor: 'color-mix(in srgb, var(--cy-warning) 45%, transparent)',
+            background: 'color-mix(in srgb, var(--cy-warning) 10%, transparent)'
+          }"
           :title="t('app.sim.ctrl.restoreTitle')"
           @click="onRestore"
         >
@@ -173,7 +177,11 @@ function onManualWrite(address: number, value: number) {
         <button
           type="button"
           class="inline-flex items-center gap-1.5 px-2.5 py-1.5 border rounded-[2px] font-mono text-[10px] uppercase tracking-wider transition-all"
-          :style="{color: 'var(--cy-primary)', borderColor: 'var(--cy-primary)55', background: 'rgba(0,240,255,0.06)'}"
+          :style="{
+            color: 'var(--cy-primary)',
+            borderColor: 'color-mix(in srgb, var(--cy-primary) 45%, transparent)',
+            background: 'color-mix(in srgb, var(--cy-primary) 10%, transparent)'
+          }"
           :title="t('app.sim.ctrl.helpTitle')"
           @click="onShowHelp"
         >
