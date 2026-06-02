@@ -795,18 +795,21 @@
         "clear": "مسح"
       },
       "debug": {
-        "label": "كتابة يدوية (Phase 2 — حتى يصل الـ parser)",
+        "toggle": "أدوات التطوير — كتابة يدوية لسجل",
+        "label": "كتابة يدوية",
         "valuePlaceholder": "0x...",
         "write": "كتابة",
         "invalid": "قيمة غير صالحة"
       },
       "ctrl": {
+        "compile": "ترجمة",
         "run": "تشغيل",
         "pause": "إيقاف مؤقّت",
         "step": "خطوة",
         "reset": "إعادة",
         "statusRunning": "// قيد التشغيل",
-        "statusIdle": "// خامل"
+        "statusIdle": "// خامل",
+        "statusHalted": "// متوقّف"
       }
     },
     "landing": {

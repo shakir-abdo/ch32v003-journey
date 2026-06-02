@@ -795,18 +795,21 @@
         "clear": "Clear"
       },
       "debug": {
-        "label": "Manual write (Phase 2 — until the parser lands)",
+        "toggle": "Dev tools — manual register write",
+        "label": "Manual write",
         "valuePlaceholder": "0x...",
         "write": "Write",
         "invalid": "invalid value"
       },
       "ctrl": {
+        "compile": "Compile",
         "run": "Run",
         "pause": "Pause",
         "step": "Step",
         "reset": "Reset",
         "statusRunning": "// running",
-        "statusIdle": "// idle"
+        "statusIdle": "// idle",
+        "statusHalted": "// halted"
       }
     },
     "landing": {

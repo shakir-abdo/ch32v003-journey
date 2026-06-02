@@ -1,17 +1,17 @@
 /**
  * useSimulator() — single shared bus + reactive views for the playground page.
  *
- * The bus itself lives outside Vue's reactivity for performance; we mirror
- * its state into refs every time we call `flushSnapshot()`. That happens
- * on write/reset, which is the only time anything changes in Phase 2.
- *
- * Phase 4 will add `step()` once the interpreter lands.
+ * The bus and interpreter live outside Vue's reactivity for performance;
+ * we mirror their state into refs every time something changes. That
+ * happens on parse, write, step, and reset.
  */
 import {Bus} from '~/sim/bus'
 import {REGISTERS} from '~/sim/registers'
 import {rccHook} from '~/sim/peripherals/rcc'
 import {gpioHook, gpioPinModel} from '~/sim/peripherals/gpio'
-import type {PinStatus, PinDef} from '~/sim/types'
+import {parse, ParseError} from '~/sim/parser'
+import {Interpreter, RuntimeError} from '~/sim/interpreter'
+import type {PinDef, PinStatus} from '~/sim/types'
 
 export interface RegisterRow {
   name: string
@@ -49,9 +49,16 @@ const J4M6_LAYOUT: Array<Omit<PinDef, 'status'>> = [
 export function useSimulator() {
   const bus = getBus()
 
-  const registers = ref<RegisterRow[]>([])
-  const pins = ref<PinDef[]>([])
+  const registers   = ref<RegisterRow[]>([])
+  const pins        = ref<PinDef[]>([])
   const consoleEntries = ref<Array<{level: 'info'|'warn'|'error'; msg: string}>>([])
+  const activeLineRange = ref<[number, number] | null>(null)
+  const interpreterReady = ref(false)
+  const halted     = ref(false)
+  const running    = ref(false)
+
+  let interpreter: Interpreter | null = null
+  let runTimer: ReturnType<typeof setTimeout> | null = null
 
   function flushSnapshot(flashedByAddress = new Map<number, number[]>()) {
     registers.value = REGISTERS.map((r) => ({
@@ -79,44 +86,131 @@ export function useSimulator() {
 
   function manualWrite(address: number, value: number) {
     const reg = REGISTERS.find((r) => r.address === address)
-    if (!reg) {
-      log('warn', `unknown address ${hex(address)}`)
-      return
-    }
+    if (!reg) { log('warn', `unknown address ${hex(address)}`); return }
     const result = bus.write(address, value >>> 0)
-
-    // Build flash map for the UI.
     const flashed = new Map<number, number[]>()
-    for (const w of result.writes) {
-      flashed.set(w.address, w.bitsFlipped)
-    }
+    for (const w of result.writes) flashed.set(w.address, w.bitsFlipped)
     flushSnapshot(flashed)
-
-    // Log primary + cascading writes.
     for (const w of result.writes) {
       const tag = w.address === address ? 'WRITE' : '↪ side-effect'
-      log('info',
-        `${tag} ${w.register} : ${hex(w.oldValue)} → ${hex(w.newValue)} (bits flipped: ${w.bitsFlipped.join(', ') || '—'})`
-      )
+      log('info', `${tag} ${w.register} : ${hex(w.oldValue)} → ${hex(w.newValue)} (bits flipped: ${w.bitsFlipped.join(', ') || '—'})`)
     }
-    for (const pc of result.pinChanges) {
-      log('info', `PIN ${pc.pin} : ${pc.oldStatus} → ${pc.newStatus}`)
-    }
+    for (const pc of result.pinChanges) log('info', `PIN ${pc.pin} : ${pc.oldStatus} → ${pc.newStatus}`)
+    if (flashed.size > 0) setTimeout(() => flushSnapshot(), 700)
+  }
 
-    // Drop flash highlight after a moment so subsequent writes can pulse again.
-    if (flashed.size > 0) {
-      setTimeout(() => flushSnapshot(), 700)
+  function compile(source: string): boolean {
+    try {
+      const {program, macros, warnings} = parse(source)
+      interpreter = new Interpreter(program, bus, macros, {
+        onLog: (lvl, m) => log(lvl, m)
+      })
+      for (const w of warnings) log('warn', w)
+      interpreterReady.value = true
+      halted.value = false
+      activeLineRange.value = null
+      log('info', `compiled ${macros.size} macros + main()${program.main ? '' : ' [no main]'}`)
+      return true
+    } catch (e) {
+      interpreter = null
+      interpreterReady.value = false
+      if (e instanceof ParseError) {
+        log('error', e.message)
+      } else if (e instanceof Error) {
+        log('error', `compile error: ${e.message}`)
+      } else {
+        log('error', 'compile error: unknown')
+      }
+      return false
     }
   }
 
+  function step(source: string): boolean {
+    if (!interpreter) {
+      if (!compile(source)) return false
+    }
+    try {
+      const r = interpreter!.step()
+      if (!r) { halted.value = true; activeLineRange.value = null; log('info', 'halt — end of program'); return false }
+      applyStepDiff(r.writes, r.pinChanges)
+      activeLineRange.value = r.lineRange
+      if (r.log) log('info', r.log)
+      return true
+    } catch (e) {
+      handleRuntimeError(e)
+      return false
+    }
+  }
+
+  function applyStepDiff(writes: ReturnType<typeof bus.write>['writes'], pinChanges: ReturnType<typeof bus.write>['pinChanges']) {
+    const flashed = new Map<number, number[]>()
+    for (const w of writes) {
+      flashed.set(w.address, w.bitsFlipped)
+      log('info', `WRITE ${w.register} : ${hex(w.oldValue)} → ${hex(w.newValue)} (bits: ${w.bitsFlipped.join(', ') || '—'})`)
+    }
+    for (const pc of pinChanges) log('info', `PIN ${pc.pin} : ${pc.oldStatus} → ${pc.newStatus}`)
+    flushSnapshot(flashed)
+    if (flashed.size > 0) setTimeout(() => flushSnapshot(), 700)
+  }
+
+  function run(source: string, intervalMs = 120) {
+    if (!interpreter) {
+      if (!compile(source)) return
+    }
+    running.value = true
+    halted.value = false
+
+    const tick = () => {
+      if (!running.value || !interpreter) return
+      try {
+        const r = interpreter.step()
+        if (!r) {
+          running.value = false
+          halted.value = true
+          activeLineRange.value = null
+          log('info', 'halt — end of program')
+          return
+        }
+        applyStepDiff(r.writes, r.pinChanges)
+        activeLineRange.value = r.lineRange
+        if (r.log) log('info', r.log)
+        runTimer = setTimeout(tick, intervalMs)
+      } catch (e) {
+        running.value = false
+        handleRuntimeError(e)
+      }
+    }
+    tick()
+  }
+
+  function pause() {
+    running.value = false
+    if (runTimer) { clearTimeout(runTimer); runTimer = null }
+  }
+
   function reset() {
+    pause()
     bus.reset()
-    consoleEntries.value = [{level: 'info', msg: 'Simulator reset.'}]
+    interpreter = null
+    interpreterReady.value = false
+    halted.value = false
+    activeLineRange.value = null
+    consoleEntries.value = [{level: 'info', msg: 'simulator reset.'}]
     flushSnapshot()
   }
 
   function clearConsole() {
     consoleEntries.value = []
+  }
+
+  function handleRuntimeError(e: unknown) {
+    if (e instanceof RuntimeError) {
+      log('error', e.message)
+    } else if (e instanceof Error) {
+      log('error', `runtime error: ${e.message}`)
+    } else {
+      log('error', 'runtime error: unknown')
+    }
   }
 
   // Initial snapshot
@@ -126,9 +220,17 @@ export function useSimulator() {
     registers,
     pins,
     consoleEntries,
-    manualWrite,
+    activeLineRange,
+    interpreterReady,
+    halted,
+    running,
+    compile,
+    step,
+    run,
+    pause,
     reset,
-    clearConsole
+    clearConsole,
+    manualWrite
   }
 }
 

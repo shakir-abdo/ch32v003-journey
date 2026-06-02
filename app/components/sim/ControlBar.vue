@@ -3,6 +3,7 @@ const {t} = useI18n()
 
 const props = defineProps<{
   running?: boolean
+  halted?: boolean
   canStep?: boolean
 }>()
 
@@ -11,13 +12,15 @@ const emit = defineEmits<{
   pause: []
   step: []
   reset: []
+  compile: []
 }>()
 
 const buttons = computed(() => [
-  {key: 'run',   icon: 'i-lucide-play',         label: t('app.sim.ctrl.run'),   color: '#00FF9F', emit: 'run' as const,   disabled: props.running},
-  {key: 'pause', icon: 'i-lucide-pause',        label: t('app.sim.ctrl.pause'), color: '#FFB800', emit: 'pause' as const, disabled: !props.running},
-  {key: 'step',  icon: 'i-lucide-step-forward', label: t('app.sim.ctrl.step'),  color: '#00F0FF', emit: 'step' as const,  disabled: props.running || props.canStep === false},
-  {key: 'reset', icon: 'i-lucide-rotate-ccw',   label: t('app.sim.ctrl.reset'), color: '#FF2E5E', emit: 'reset' as const, disabled: false}
+  {key: 'compile', icon: 'i-lucide-hammer',       label: t('app.sim.ctrl.compile'), color: '#B14AED', emit: 'compile' as const, disabled: props.running},
+  {key: 'run',     icon: 'i-lucide-play',         label: t('app.sim.ctrl.run'),     color: '#00FF9F', emit: 'run' as const,     disabled: props.running || props.halted},
+  {key: 'pause',   icon: 'i-lucide-pause',        label: t('app.sim.ctrl.pause'),   color: '#FFB800', emit: 'pause' as const,   disabled: !props.running},
+  {key: 'step',    icon: 'i-lucide-step-forward', label: t('app.sim.ctrl.step'),    color: '#00F0FF', emit: 'step' as const,    disabled: props.running || props.halted || props.canStep === false},
+  {key: 'reset',   icon: 'i-lucide-rotate-ccw',   label: t('app.sim.ctrl.reset'),   color: '#FF2E5E', emit: 'reset' as const,   disabled: false}
 ])
 </script>
 
@@ -41,7 +44,11 @@ const buttons = computed(() => [
     </button>
     <div class="flex-1" />
     <div class="font-mono text-[10px] uppercase tracking-wider text-[var(--cy-fg-muted)]">
-      {{ running ? t('app.sim.ctrl.statusRunning') : t('app.sim.ctrl.statusIdle') }}
+      {{
+        halted ? t('app.sim.ctrl.statusHalted') :
+        running ? t('app.sim.ctrl.statusRunning') :
+        t('app.sim.ctrl.statusIdle')
+      }}
     </div>
   </div>
 </template>

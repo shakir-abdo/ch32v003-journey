@@ -11,32 +11,38 @@ useSeoMeta({
     : 'Visual CH32V003J4M6 register simulator — write code and watch bits and pin states change line by line.'
 })
 
-const {registers, pins, consoleEntries, manualWrite, reset, clearConsole} = useSimulator()
+const {
+  registers, pins, consoleEntries, activeLineRange,
+  running, halted,
+  compile, step, run, pause, reset, clearConsole, manualWrite
+} = useSimulator()
 
-const code = ref(`// مثال أوّلي — RCC + GPIOC
-// blink PC1 (J4M6 pin 5). الـ parser لم يصل بعد — استخدم زر "كتابة يدوية" أسفل لتجربة الـ engine.
+const code = ref(`// مثال: تشغيل ساعة GPIOC ثم رفع PC1 (Pin 5 على J4M6).
+// اضغط "خطوة" لتنفيذ سطر-بسطر، أو "تشغيل" لتنفيذ تلقائي بطيء.
 
-RCC_APB2PCENR |= (1 << 4);       // GPIOC clock on
-GPIOC_CFGLR &= ~(0xF << (4*1));  // clear PC1
-GPIOC_CFGLR |=  (0x3 << (4*1));  // PC1 PP output 50MHz
+#define RCC_BASE        0x40021000
+#define RCC_APB2PCENR   (*(volatile unsigned int*)(RCC_BASE + 0x18))
 
-while (1) {
-  GPIOC_BSHR = (1 << 1);         // PC1 HIGH
-  Delay_Ms(500);
-  GPIOC_BCR  = (1 << 1);         // PC1 LOW
-  Delay_Ms(500);
+#define GPIOC_BASE      0x40011000
+#define GPIOC_CFGLR     (*(volatile unsigned int*)(GPIOC_BASE + 0x00))
+#define GPIOC_BSHR      (*(volatile unsigned int*)(GPIOC_BASE + 0x10))
+#define GPIOC_BCR       (*(volatile unsigned int*)(GPIOC_BASE + 0x14))
+
+int main() {
+  RCC_APB2PCENR |= (1 << 4);          // GPIOC clock on
+  GPIOC_CFGLR   &= ~(0xF << (4*1));   // clear PC1 config
+  GPIOC_CFGLR   |=  (0x3 << (4*1));   // PC1 = push-pull output 50MHz
+
+  GPIOC_BSHR = (1 << 1);              // PC1 HIGH
+  GPIOC_BCR  = (1 << 1);              // PC1 LOW
 }
 `)
 
-const running = ref(false)
-
-function onRun()   { running.value = true;  consoleEntries.value.push({level: 'info', msg: 'Run requested (parser arrives in Phase 3)'}) }
-function onPause() { running.value = false }
-function onStep()  { consoleEntries.value.push({level: 'info', msg: 'Step requested (parser arrives in Phase 3)'}) }
-function onReset() {
-  running.value = false
-  reset()
-}
+function onRun()   { run(code.value) }
+function onPause() { pause() }
+function onStep()  { step(code.value) }
+function onReset() { reset() }
+function onCompile() { compile(code.value) }
 
 function onManualWrite(address: number, value: number) {
   manualWrite(address, value)
@@ -62,22 +68,19 @@ function onManualWrite(address: number, value: number) {
     <div class="mb-4">
       <SimControlBar
         :running="running"
+        :halted="halted"
         @run="onRun"
         @pause="onPause"
         @step="onStep"
         @reset="onReset"
+        @compile="onCompile"
       />
     </div>
 
-    <!-- Manual-write debug widget (Phase 2 only — replaced by parser in Phase 3) -->
-    <div class="mb-4">
-      <SimManualWrite @write="onManualWrite" />
-    </div>
-
     <!-- Three-pane layout -->
-    <div class="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-4 mb-4" style="min-height: 560px;">
-      <div class="min-h-[420px]">
-        <SimCodeEditor v-model="code" />
+    <div class="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-4 mb-4" style="min-height: 580px;">
+      <div class="min-h-[420px] flex flex-col">
+        <SimCodeEditor v-model="code" :active-line-range="activeLineRange" />
       </div>
       <div>
         <SimChipDiagram :pins="pins" />
@@ -86,6 +89,14 @@ function onManualWrite(address: number, value: number) {
         <SimRegisterPanel :registers="registers" />
       </div>
     </div>
+
+    <!-- Manual-write debug widget (kept for spot-checks during dev) -->
+    <details class="mb-4">
+      <summary class="font-mono text-[10px] uppercase tracking-wider text-[var(--cy-fg-muted)] cursor-pointer mb-2">
+        // {{ t('app.sim.debug.toggle') }}
+      </summary>
+      <SimManualWrite @write="onManualWrite" />
+    </details>
 
     <!-- Console -->
     <div class="h-48">
