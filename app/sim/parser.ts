@@ -248,6 +248,11 @@ class Parser {
     const t = this.peek()
 
     if (t.type === 'PUNCT' && t.value === '{') return this.parseBlock()
+    // Empty statement: bare ';' (used for while(...); spin-loops)
+    if (t.type === 'PUNCT' && t.value === ';') {
+      this.advance()
+      return {type: 'Block', body: [], startLine: t.line, endLine: t.line}
+    }
     if (t.type === 'IDENT') {
       switch (t.value) {
         case 'if':       return this.parseIf()
