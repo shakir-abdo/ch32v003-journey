@@ -1,7 +1,7 @@
 ---
 order: 6
 slug: "l06-systick"
-title: "SysTick — التوقيت غير الحاجب"
+title: "SysTick — التوقيت بدون حظر المعالج"
 title_en: "SysTick Timing"
 icon: "i-lucide-timer"
 track: "io"

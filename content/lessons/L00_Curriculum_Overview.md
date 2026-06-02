@@ -79,7 +79,7 @@ tags: ["intro", "roadmap"]
 |---|------|---------|-------|
 | [L04](/lessons/l04-gpio-input) | GPIO كـ Input + EXTI | الأزرار، pull-ups الداخلية، debouncing | 30 د |
 | [L05](/lessons/l05-clock-system) | نظام الساعة (RCC) | HSI / HSE / PLL، الانتقال إلى 48 MHz | 30 د |
-| [L06](/lessons/l06-systick) | SysTick — التوقيت غير الحاجب | عدّاد 32-بت + millis() + wfi | 30 د |
+| [L06](/lessons/l06-systick) | SysTick — التوقيت بدون حظر المعالج | عدّاد 32-بت + millis() + wfi | 30 د |
 | [L07](/lessons/l07-nvic-pfic) | PFIC — وحدة المقاطعات | Vector Table، الـ ISRs، الأولويات | 30 د |
 | [L08](/lessons/l08-timers-pwm) | TIM1 / TIM2 — PWM + Input Capture | Output Compare، Encoder mode | 30 د |
 
