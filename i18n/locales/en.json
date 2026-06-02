@@ -769,9 +769,88 @@
     "header": {
       "home": "// HOME",
       "lessons": "// LESSONS",
+      "playground": "// PLAYGROUND",
       "about": "// ABOUT",
       "status": "[ONLINE]",
       "resources": "// RESOURCES"
+    },
+    "sim": {
+      "title": "Playground — J4M6 Simulator",
+      "subtitle": "Write register-level code for the CH32V003J4M6 and execute it line by line. Watch the bits flip inside each register and the pin states update in real time.",
+      "experimental": "BETA · J4M6 register simulator",
+      "chip": {
+        "pinsLabel": "8 PINS",
+        "legend": "Status legend"
+      },
+      "editor": {
+        "label": "Code editor",
+        "hint": "C-like DSL",
+        "placeholder": "// write your code here..."
+      },
+      "registers": {
+        "label": "Registers (32-bit)"
+      },
+      "presets": {
+        "label": "Ready-made examples",
+        "placeholder": "Pick an example…",
+        "hint": "Selecting one loads the code and resets the engine."
+      },
+      "tryHere": {
+        "button": "Try in the playground",
+        "title": "Open this lesson inside the simulator and watch the bits flip."
+      },
+      "mobileBlock": {
+        "title": "Playground is desktop-only",
+        "body": "The 32-bit register grid, code editor, and chip diagram need a wide canvas. Please open this page on a laptop or desktop for the full experience.",
+        "hint": "minimum width: 1024px"
+      },
+      "console": {
+        "label": "Console",
+        "empty": "// no messages yet.",
+        "clear": "Clear"
+      },
+      "debug": {
+        "toggle": "Dev tools — manual register write",
+        "label": "Manual write",
+        "valuePlaceholder": "0x...",
+        "write": "Write",
+        "invalid": "invalid value"
+      },
+      "ctrl": {
+        "compile": "Compile",
+        "run": "Run",
+        "resume": "Resume",
+        "pause": "Pause",
+        "step": "Step",
+        "reset": "Reset",
+        "speed": "Speed",
+        "restore": "Restore",
+        "restoreTitle": "Reset the code back to the preset's original (discards your edits).",
+        "help": "Help",
+        "helpTitle": "Re-open the welcome tour.",
+        "statusRunning": "// running",
+        "statusIdle": "// idle",
+        "statusHalted": "// halted"
+      },
+      "tutorial": {
+        "title": "Welcome to the playground",
+        "subtitle": "Six quick steps so you know what every piece of this page does.",
+        "s1Title": "Pick an example",
+        "s1Body": "Use the dropdown at the top to load a ready-made snippet (e.g. Blink PC1). It drops the code into the editor.",
+        "s2Title": "Hit 'Compile'",
+        "s2Body": "Compile parses the C-like source, builds the AST, and primes the execution engine.",
+        "s3Title": "Step through it",
+        "s3Body": "Step runs one statement at a time. The active line highlights in the editor. Or hit Run for slow auto-play.",
+        "s4Title": "Watch the bits",
+        "s4Body": "Every register is shown as 32 bit cells. Flipped bits flash, and the just-touched register gets a glowing border.",
+        "s5Title": "Adjust the pace",
+        "s5Body": "The speed slider controls the per-step interval from 100ms to 2500ms. Drag it mid-run if you want.",
+        "s6Title": "Your edits are saved",
+        "s6Body": "Anything you type is auto-saved in this browser. The 'Restore' button takes you back to the preset's original code.",
+        "dismissNote": "This tour won't auto-open again.",
+        "cta": "Get started",
+        "close": "Close"
+      }
     },
     "landing": {
       "hudPrefix": "SYS::INITIALIZED",

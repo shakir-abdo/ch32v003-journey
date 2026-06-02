@@ -37,6 +37,21 @@ export default defineNuxtConfig({
     dirs: ['schemas/**']
   },
 
+  // Pre-bundle CodeMirror so the /playground page doesn't trigger a
+  // dep-discovery reload on first visit.
+  vite: {
+    optimizeDeps: {
+      include: [
+        '@codemirror/commands',
+        '@codemirror/lang-cpp',
+        '@codemirror/language',
+        '@codemirror/state',
+        '@codemirror/theme-one-dark',
+        '@codemirror/view'
+      ]
+    }
+  },
+
   // https://i18n.nuxtjs.org
   // - Two locales out of the box: English (LTR) + Arabic (RTL)
   // - "no_prefix" keeps URLs the same; locale is persisted in a cookie

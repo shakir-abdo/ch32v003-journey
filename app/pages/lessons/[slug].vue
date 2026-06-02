@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import {PRESETS_BY_LESSON} from '~/sim/presets'
+
 const route = useRoute()
 const {t, locale} = useI18n()
 const isRtl = computed(() => locale.value === 'ar')
 const slug = computed(() => String(route.params.slug))
+const lessonPresets = computed(() => PRESETS_BY_LESSON.get(slug.value) ?? [])
 
 const {data: lesson} = await useAsyncData(`lesson-${slug.value}`, () =>
   queryCollection('lessons').where('slug', '=', slug.value).first()
@@ -145,6 +148,27 @@ onBeforeUnmount(() => {
         <span v-for="tag in lesson.tags" :key="tag" class="cy-tag">
           #{{ tag }}
         </span>
+      </div>
+
+      <!-- "Try in playground" — appears only when a preset is mapped to this lesson -->
+      <div v-if="lessonPresets.length" class="mt-5 flex flex-wrap gap-2" :dir="isRtl ? 'rtl' : 'ltr'">
+        <NuxtLink
+          v-for="p in lessonPresets"
+          :key="p.id"
+          :to="`/playground?example=${p.id}`"
+          class="inline-flex items-center gap-2 px-3 py-2 border rounded-[2px] font-mono text-[11px] uppercase tracking-wider transition-all hover:no-underline"
+          :style="{
+            color: tColor,
+            borderColor: tColor + '66',
+            background: tColor + '10'
+          }"
+          :title="t('app.sim.tryHere.title')"
+        >
+          <UIcon name="i-lucide-flask-conical" class="size-3.5" />
+          <span>{{ t('app.sim.tryHere.button') }}</span>
+          <span class="text-[var(--cy-fg-muted)] normal-case">·</span>
+          <span class="normal-case">{{ (p.title as any)[locale] ?? p.title.en }}</span>
+        </NuxtLink>
       </div>
     </header>
 
