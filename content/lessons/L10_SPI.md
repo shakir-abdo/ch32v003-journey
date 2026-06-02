@@ -76,7 +76,7 @@ static void delay(volatile u32 cycles) {
 
 - Master يولّد ساعة SCK ويختار الـ slave بـ CS=LOW.
 - يرسل عبر MOSI، يستقبل عبر MISO.
-- البيانات تتبادل كل ضربة ساعة بالتزامن (Full-Duplex).
+- البيانات تتبادل مع كل حافّة ساعة بالتزامن (Full-Duplex).
 
 ### الأنماط الأربعة (CPOL/CPHA)
 
