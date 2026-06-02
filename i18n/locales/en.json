@@ -773,6 +773,35 @@
       "status": "[ONLINE]",
       "resources": "// RESOURCES"
     },
+    "sim": {
+      "title": "Playground — J4M6 Simulator",
+      "subtitle": "Write register-level code for the CH32V003J4M6 and execute it line by line. Watch the bits flip inside each register and the pin states update in real time.",
+      "experimental": "Phase 1 — UI scaffold",
+      "chip": {
+        "pinsLabel": "8 PINS",
+        "legend": "Status legend"
+      },
+      "editor": {
+        "label": "Code editor",
+        "hint": "C-like DSL",
+        "placeholder": "// write your code here..."
+      },
+      "registers": {
+        "label": "Registers (32-bit)"
+      },
+      "console": {
+        "label": "Console",
+        "empty": "// no messages yet."
+      },
+      "ctrl": {
+        "run": "Run",
+        "pause": "Pause",
+        "step": "Step",
+        "reset": "Reset",
+        "statusRunning": "// running",
+        "statusIdle": "// idle"
+      }
+    },
     "landing": {
       "hudPrefix": "SYS::INITIALIZED",
       "hudLoad": "// LOAD_AVG: 0.13",
