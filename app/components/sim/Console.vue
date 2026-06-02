@@ -13,10 +13,11 @@ defineProps<{
 
 const emit = defineEmits<{clear: []}>()
 
+// Use CSS variables instead of fixed hex so the colors track the active theme.
 const levelColor: Record<LogEntry['level'], string> = {
-  info: '#7A7A95',
-  warn: '#FFB800',
-  error: '#FF2E5E'
+  info:  'var(--cy-fg-muted)',
+  warn:  'var(--cy-warning)',
+  error: 'var(--cy-destructive)'
 }
 </script>
 

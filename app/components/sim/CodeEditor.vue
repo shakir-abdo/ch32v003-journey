@@ -11,13 +11,14 @@
  *    during SSR the host <div> renders empty.
  */
 import {EditorView, lineNumbers, highlightActiveLine, keymap, Decoration, type DecorationSet} from '@codemirror/view'
-import {EditorState, StateField, StateEffect, RangeSetBuilder} from '@codemirror/state'
+import {EditorState, StateField, StateEffect, RangeSetBuilder, Compartment} from '@codemirror/state'
 import {indentOnInput, syntaxHighlighting, defaultHighlightStyle, bracketMatching} from '@codemirror/language'
 import {defaultKeymap, history, historyKeymap} from '@codemirror/commands'
 import {cpp} from '@codemirror/lang-cpp'
 import {oneDark} from '@codemirror/theme-one-dark'
 
 const {t} = useI18n()
+const colorMode = useColorMode()
 
 const props = defineProps<{
   modelValue: string
@@ -62,7 +63,9 @@ const activeLineField = StateField.define<DecorationSet>({
 
 const activeLineTheme = EditorView.theme({
   '.cm-sim-active-line': {
-    backgroundColor: 'rgba(0, 240, 255, 0.10)',
+    // Use the cyberpunk primary token so the highlight tracks the
+    // active theme (cyan in dark mode, darker cyan in light mode).
+    backgroundColor: 'color-mix(in srgb, var(--cy-primary) 14%, transparent)',
     boxShadow: 'inset 3px 0 0 var(--cy-primary)'
   }
 })
@@ -93,6 +96,16 @@ function applyActiveRange(range: [number, number] | null) {
   }
 }
 
+// Theme is held in a compartment so we can hot-swap dark↔light without
+// rebuilding the document state.
+const themeCompartment = new Compartment()
+
+function themeExtFor(mode: string) {
+  // In dark mode use One Dark; in light mode use CM6's built-in light look
+  // (an empty array == no theme override).
+  return mode === 'dark' ? oneDark : []
+}
+
 function makeState(initial: string): EditorState {
   return EditorState.create({
     doc: initial,
@@ -104,7 +117,7 @@ function makeState(initial: string): EditorState {
       indentOnInput(),
       syntaxHighlighting(defaultHighlightStyle, {fallback: true}),
       cpp(),
-      oneDark,
+      themeCompartment.of(themeExtFor(colorMode.value)),
       activeLineField,
       activeLineTheme,
       keymap.of([...defaultKeymap, ...historyKeymap]),
@@ -138,6 +151,12 @@ watch(() => props.modelValue, (next) => {
 })
 
 watch(() => props.activeLineRange, (r) => applyActiveRange(r ?? null))
+
+// Hot-swap the theme when the user toggles light/dark mode.
+watch(() => colorMode.value, (mode) => {
+  if (!view) return
+  view.dispatch({effects: themeCompartment.reconfigure(themeExtFor(mode))})
+})
 </script>
 
 <template>

@@ -84,11 +84,11 @@ function styleOf(s: PinStatus) {
         </div>
       </div>
 
-      <!-- chip body -->
+      <!-- chip body — uses theme tokens so it adapts to light mode -->
       <div
         class="relative w-32 sm:w-40 h-56 sm:h-64 rounded-md border-2 grid place-items-center"
         :style="{
-          background: 'linear-gradient(135deg, #0E0E18 0%, #1A1A28 100%)',
+          background: 'linear-gradient(135deg, var(--cy-shell) 0%, var(--cy-card-elev) 100%)',
           borderColor: 'var(--cy-border-strong)'
         }"
       >
