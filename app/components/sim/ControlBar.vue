@@ -1,5 +1,6 @@
 <script setup lang="ts">
-const {t} = useI18n()
+const {t, locale} = useI18n()
+const isRtl = computed(() => locale.value === 'ar')
 
 const props = defineProps<{
   running?: boolean
@@ -32,7 +33,7 @@ const buttons = computed(() => [
 </script>
 
 <template>
-  <div class="cy-panel px-4 py-3 flex items-center gap-3 flex-wrap" dir="ltr">
+  <div class="cy-panel px-4 py-3 flex items-center gap-3 flex-wrap" :dir="isRtl ? 'rtl' : 'ltr'">
     <button
       v-for="b in buttons"
       :key="b.key"
@@ -50,8 +51,8 @@ const buttons = computed(() => [
       {{ b.label }}
     </button>
 
-    <!-- Speed slider -->
-    <div class="flex items-center gap-2 ms-2 ps-3 border-s border-[var(--cy-border)]">
+    <!-- Speed slider — slider keeps LTR internally so the visual mapping (low→high left→right) is universal -->
+    <div class="flex items-center gap-2 ms-2 ps-3 border-s border-[var(--cy-border)]" dir="ltr">
       <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--cy-fg-muted)]">
         {{ t('app.sim.ctrl.speed') }}
       </span>

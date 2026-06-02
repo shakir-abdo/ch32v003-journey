@@ -777,7 +777,7 @@
     "sim": {
       "title": "Playground — J4M6 Simulator",
       "subtitle": "Write register-level code for the CH32V003J4M6 and execute it line by line. Watch the bits flip inside each register and the pin states update in real time.",
-      "experimental": "Phase 1 — UI scaffold",
+      "experimental": "BETA · J4M6 register simulator",
       "chip": {
         "pinsLabel": "8 PINS",
         "legend": "Status legend"

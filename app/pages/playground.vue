@@ -158,7 +158,7 @@ function onManualWrite(address: number, value: number) {
       <div class="flex-1 min-w-0">
         <SimPresetMenu @load="loadPreset" />
       </div>
-      <div class="cy-panel px-3 py-2 inline-flex items-center gap-2" dir="ltr">
+      <div class="cy-panel px-3 py-2 inline-flex items-center gap-2" :dir="isRtl ? 'rtl' : 'ltr'">
         <button
           type="button"
           :disabled="!hasUnsavedEdits"
@@ -202,12 +202,14 @@ function onManualWrite(address: number, value: number) {
       <SimRegisterPanel :registers="registers" :highlighted-register="lastChangedRegister" />
     </div>
 
-    <!-- Row 2: Editor (2/3) + Chip (1/3). Both stretch to the same height. -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4 items-stretch" style="min-height: 520px;">
-      <div class="lg:col-span-2 flex flex-col min-h-[420px]">
+    <!-- Row 2: Editor (2/3) + Chip (1/3). Both have a fixed height so the
+         editor never grows past the viewport on long code — internal scroller
+         takes over instead. -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4 items-stretch">
+      <div class="lg:col-span-2 flex flex-col h-[560px]">
         <SimCodeEditor v-model="code" :active-line-range="activeLineRange" />
       </div>
-      <div class="lg:col-span-1 flex flex-col min-h-[420px]">
+      <div class="lg:col-span-1 flex flex-col h-[560px]">
         <SimChipDiagram :pins="pins" />
       </div>
     </div>

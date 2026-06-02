@@ -7,8 +7,8 @@
  *  - One Dark theme that pairs with the site's cyberpunk palette.
  *  - Active-line marker (driven by props.activeLineRange) shows which
  *    statement the interpreter is currently executing.
- *  - Renders only on the client (ClientOnly wrapper); SSR keeps the
- *    initial textarea so the page is still usable before hydration.
+ *  - Mounts only on the client (onMounted is client-only in Nuxt SSR);
+ *    during SSR the host <div> renders empty.
  */
 import {EditorView, lineNumbers, highlightActiveLine, keymap, Decoration, type DecorationSet} from '@codemirror/view'
 import {EditorState, StateField, StateEffect, RangeSetBuilder} from '@codemirror/state'
@@ -80,8 +80,17 @@ function applyActiveRange(range: [number, number] | null) {
   const to   = doc.line(endLine).to
   view.dispatch({effects: setActiveRange.of({from, to})})
 
-  // Scroll the active range into view if it's offscreen.
-  view.dispatch({effects: EditorView.scrollIntoView(from, {y: 'center'})})
+  // Scroll the editor's own scroller only — never the page. Using a
+  // manual scrollTop adjustment avoids CM6's scrollIntoView, which
+  // can scroll ancestor containers and fight the register-panel
+  // auto-scroll happening in the same step.
+  const scroller = view.scrollDOM
+  const block = view.lineBlockAt(from)
+  const viewTop = scroller.scrollTop
+  const viewBottom = viewTop + scroller.clientHeight
+  if (block.top < viewTop || block.bottom > viewBottom) {
+    scroller.scrollTop = Math.max(0, block.top - scroller.clientHeight / 3)
+  }
 }
 
 function makeState(initial: string): EditorState {
@@ -142,17 +151,8 @@ watch(() => props.activeLineRange, (r) => applyActiveRange(r ?? null))
       </div>
     </div>
 
-    <ClientOnly>
-      <div ref="host" class="flex-1 min-h-0 overflow-hidden text-[13px]" />
-      <template #fallback>
-        <textarea
-          :value="modelValue"
-          spellcheck="false"
-          class="flex-1 w-full p-3 bg-transparent font-mono text-[12px] leading-relaxed text-[var(--cy-fg)] resize-none focus:outline-none"
-          readonly
-        />
-      </template>
-    </ClientOnly>
+    <!-- CM6 mounts into this div on the client; it stays empty during SSR -->
+    <div ref="host" class="flex-1 min-h-0 overflow-hidden text-[13px]" />
   </div>
 </template>
 

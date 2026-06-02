@@ -2,6 +2,7 @@
 import {PRESETS} from '~/sim/presets'
 
 const {t, locale} = useI18n()
+const isRtl = computed(() => locale.value === 'ar')
 
 const emit = defineEmits<{
   load: [id: string]
@@ -18,7 +19,7 @@ function onPick(e: Event) {
 </script>
 
 <template>
-  <div class="cy-panel px-4 py-3" dir="ltr">
+  <div class="cy-panel px-4 py-3" :dir="isRtl ? 'rtl' : 'ltr'">
     <div class="flex items-center gap-3 flex-wrap">
       <div class="font-mono text-[10px] uppercase tracking-wider text-[var(--cy-primary)]">
         // {{ t('app.sim.presets.label') }}
