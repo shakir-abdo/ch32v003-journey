@@ -57,6 +57,16 @@ function btnStyle(color: string) {
     background:  `color-mix(in srgb, ${color} 14%, transparent)`
   }
 }
+
+/** Icons whose visual direction should mirror in RTL. */
+const DIRECTIONAL_ICONS = new Set([
+  'i-lucide-play',
+  'i-lucide-step-forward',
+  'i-lucide-rotate-ccw'
+])
+function iconClass(name: string): string {
+  return isRtl.value && DIRECTIONAL_ICONS.has(name) ? 'scale-x-[-1]' : ''
+}
 </script>
 
 <template>
@@ -70,7 +80,7 @@ function btnStyle(color: string) {
       :style="btnStyle(b.color)"
       @click="emit(b.emit)"
     >
-      <UIcon :name="b.icon" class="size-3.5" />
+      <UIcon :name="b.icon" class="size-3.5" :class="iconClass(b.icon)" />
       {{ b.label }}
     </button>
 

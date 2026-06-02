@@ -171,7 +171,7 @@ function onManualWrite(address: number, value: number) {
           :title="t('app.sim.ctrl.restoreTitle')"
           @click="onRestore"
         >
-          <UIcon name="i-lucide-undo-2" class="size-3" />
+          <UIcon name="i-lucide-undo-2" class="size-3" :class="isRtl ? 'scale-x-[-1]' : ''" />
           {{ t('app.sim.ctrl.restore') }}
         </button>
         <button
