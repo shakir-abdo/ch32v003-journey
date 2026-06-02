@@ -15,11 +15,17 @@ Out of scope for v1: SysTick, EXTI, TIM, UART, SPI, I2C, ADC, interrupts, pointe
 ## Page
 
 - Route: `/playground` (Arabic title: "المختبر"). Hide from main nav until v1 ships.
-- 3-pane layout:
+- 3-pane layout (registers are the centerpiece — no virtual LEDs/buttons):
   - **Left**: code editor (CodeMirror 6 minimal).
-  - **Center**: chip SVG (re-uses pinout image as reference) + 6 pin chips showing HIGH/LOW/HI-Z/AF.
-  - **Right**: register inspector (RCC + GPIOA/C/D), diffs highlighted, hex/bin toggle.
-- **Bottom strip**: control bar (Run / Step / Pause / Reset / speed slider) + console for errors.
+  - **Center**: chip SVG (8 pins arranged like the J4M6 photo). Each GPIO pin shows a small badge with its **current status**:
+    - `HIGH` / `LOW` for digital output
+    - `INPUT` (floating / pull-up / pull-down sub-tag)
+    - `AF` (Alternate Function — annotate with which peripheral: USART, I2C, SPI…)
+    - `ADC` for analog input
+    - `HI-Z` when port clock is off or pin not configured
+    - `VCC` / `GND` for the two power pins (static labels)
+  - **Right**: register inspector — **all** simulated registers listed with current 32-bit value (hex + binary), each bit field labelled per the RM. Last-written register flashes; changed bits highlighted.
+- **Bottom strip**: control bar (Run / Step / Pause / Reset / speed slider) + console for errors and informational messages.
 
 ## Engine architecture
 
@@ -67,13 +73,24 @@ Anything else → silent (or warning in console).
 
 ### Pin model
 
-Each pin has: `{name, mode, cnf, level, drive}`. Output level recomputed from:
-1. RCC clock enabled for that port? if no → HIGH-Z
-2. Mode bits 2-bit (input/output speed)
-3. CNF bits 2-bit (push-pull/open-drain/AF/analog)
-4. Latest `BSHR`/`BCR`/`OUTDR` write for the bit
+Each pin has: `{name, mode, cnf, level, status}` where `status` is the user-facing label (HIGH, LOW, INPUT, AF, ADC, HI-Z). Computed from:
+1. RCC clock enabled for that port? if no → `HI-Z`
+2. Mode bits (2-bit): `00` = input → resolve to `INPUT` + sub-status (floating/PU/PD via CNF + ODR)
+3. CNF bits (2-bit) when mode≠00: `00/01` = push-pull/open-drain output → `HIGH`/`LOW` based on ODR/BSHR/BCR; `10/11` = AF push-pull/open-drain → `AF` (sub-label = which peripheral, derived from pin mapping); when mode=00 + CNF=11 → `ADC`
+4. Last `BSHR`/`BCR`/`OUTDR` write applies for output bits
 
-Pin → physical position on chip diagram is hard-coded for J4M6.
+Pin ↔ physical position hard-coded for J4M6:
+
+| Pin | Net |
+|-----|-----|
+| 1 | PD6 (USART1_TX default) |
+| 2 | GND |
+| 3 | PA2 |
+| 4 | VCC |
+| 5 | PC1 (I2C1_SDA default) |
+| 6 | PC2 (I2C1_SCL default) |
+| 7 | PC4 (ADC IN2) |
+| 8 | PD4 (SWIO — debug) |
 
 ## Phases
 
@@ -91,7 +108,6 @@ Estimate: ~2–3 weeks single-developer focused. Each phase is independent and c
 
 - Editor: CodeMirror 6 (richer) vs plain `<textarea>` with line numbers (lighter). Lean CodeMirror.
 - Run speed when not stepping: 1 stmt/200 ms default? Adjustable?
-- Should the chip diagram show LED helpers a learner can wire to a pin? Probably yes — adds clarity. Future phase.
 
 ## Non-goals (explicitly)
 
@@ -99,3 +115,4 @@ Estimate: ~2–3 weeks single-developer focused. Each phase is independent and c
 - Compiling real C — out of scope; if needed later, separate `feat/wasm-sim` branch.
 - Writing a flashable binary back to the chip.
 - Multi-chip / multi-MCU support.
+- Virtual LEDs / buttons / external components wired to pins. The chip diagram is read-only and only displays the pin's logical status (HIGH/LOW/INPUT/AF/ADC/HI-Z).
