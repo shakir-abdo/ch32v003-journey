@@ -1,4 +1,22 @@
 <script setup lang="ts">
+/**
+ * CodeMirror 6 wrapper for the playground.
+ *
+ * Highlights:
+ *  - C/C++ syntax via @codemirror/lang-cpp (good fit for our DSL).
+ *  - One Dark theme that pairs with the site's cyberpunk palette.
+ *  - Active-line marker (driven by props.activeLineRange) shows which
+ *    statement the interpreter is currently executing.
+ *  - Renders only on the client (ClientOnly wrapper); SSR keeps the
+ *    initial textarea so the page is still usable before hydration.
+ */
+import {EditorView, lineNumbers, highlightActiveLine, keymap, Decoration, type DecorationSet} from '@codemirror/view'
+import {EditorState, StateField, StateEffect, RangeSetBuilder} from '@codemirror/state'
+import {indentOnInput, syntaxHighlighting, defaultHighlightStyle, bracketMatching} from '@codemirror/language'
+import {defaultKeymap, history, historyKeymap} from '@codemirror/commands'
+import {cpp} from '@codemirror/lang-cpp'
+import {oneDark} from '@codemirror/theme-one-dark'
+
 const {t} = useI18n()
 
 const props = defineProps<{
@@ -11,39 +29,106 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
 
-const code = computed({
-  get: () => props.modelValue,
-  set: (v) => emit('update:modelValue', v)
+const host = ref<HTMLDivElement | null>(null)
+let view: EditorView | null = null
+
+// ─── Active-line decoration via a StateField + StateEffect ──────────
+const setActiveRange = StateEffect.define<{from: number; to: number} | null>()
+
+const activeLineField = StateField.define<DecorationSet>({
+  create() { return Decoration.none },
+  update(deco, tr) {
+    for (const e of tr.effects) {
+      if (e.is(setActiveRange)) {
+        if (!e.value) return Decoration.none
+        const builder = new RangeSetBuilder<Decoration>()
+        const {from, to} = e.value
+        // Mark every line in [from..to] as active.
+        let pos = from
+        while (pos <= to) {
+          const line = tr.state.doc.lineAt(pos)
+          builder.add(line.from, line.from, Decoration.line({class: 'cm-sim-active-line'}))
+          if (line.to >= tr.state.doc.length) break
+          pos = line.to + 1
+          if (pos > to) break
+        }
+        return builder.finish()
+      }
+    }
+    return deco.map(tr.changes)
+  },
+  provide: (f) => EditorView.decorations.from(f)
 })
 
-const lines = computed(() => props.modelValue.split('\n'))
-const lineCount = computed(() => lines.value.length)
-
-function isActive(n: number): boolean {
-  const r = props.activeLineRange
-  if (!r) return false
-  return n >= r[0] && n <= r[1]
-}
-
-const editorRef = ref<HTMLTextAreaElement | null>(null)
-const gutterRef = ref<HTMLDivElement | null>(null)
-
-function onScroll(e: Event) {
-  const el = e.target as HTMLTextAreaElement
-  if (gutterRef.value) gutterRef.value.scrollTop = el.scrollTop
-}
-
-// Auto-scroll the textarea to the active line whenever it changes.
-watch(() => props.activeLineRange, (r) => {
-  if (!r || !editorRef.value) return
-  const lineH = 21 // matches `leading-relaxed` + 12px font ≈ 21px
-  const top = (r[0] - 1) * lineH
-  // Only scroll if the active line is outside the viewport.
-  const el = editorRef.value
-  if (top < el.scrollTop || top > el.scrollTop + el.clientHeight - lineH * 2) {
-    el.scrollTop = Math.max(0, top - el.clientHeight / 3)
+const activeLineTheme = EditorView.theme({
+  '.cm-sim-active-line': {
+    backgroundColor: 'rgba(0, 240, 255, 0.10)',
+    boxShadow: 'inset 3px 0 0 var(--cy-primary)'
   }
 })
+
+function applyActiveRange(range: [number, number] | null) {
+  if (!view) return
+  if (!range) {
+    view.dispatch({effects: setActiveRange.of(null)})
+    return
+  }
+  const doc = view.state.doc
+  const startLine = Math.min(range[0], doc.lines)
+  const endLine   = Math.min(range[1], doc.lines)
+  const from = doc.line(startLine).from
+  const to   = doc.line(endLine).to
+  view.dispatch({effects: setActiveRange.of({from, to})})
+
+  // Scroll the active range into view if it's offscreen.
+  view.dispatch({effects: EditorView.scrollIntoView(from, {y: 'center'})})
+}
+
+function makeState(initial: string): EditorState {
+  return EditorState.create({
+    doc: initial,
+    extensions: [
+      lineNumbers(),
+      highlightActiveLine(),
+      history(),
+      bracketMatching(),
+      indentOnInput(),
+      syntaxHighlighting(defaultHighlightStyle, {fallback: true}),
+      cpp(),
+      oneDark,
+      activeLineField,
+      activeLineTheme,
+      keymap.of([...defaultKeymap, ...historyKeymap]),
+      EditorView.lineWrapping,
+      EditorView.updateListener.of((u) => {
+        if (u.docChanged) emit('update:modelValue', u.state.doc.toString())
+      })
+    ]
+  })
+}
+
+onMounted(() => {
+  if (!host.value) return
+  view = new EditorView({state: makeState(props.modelValue), parent: host.value})
+  if (props.activeLineRange) applyActiveRange(props.activeLineRange)
+})
+
+onBeforeUnmount(() => {
+  view?.destroy()
+  view = null
+})
+
+// External code prop changes (e.g. preset load) — overwrite the doc.
+watch(() => props.modelValue, (next) => {
+  if (!view) return
+  if (next === view.state.doc.toString()) return
+  view.dispatch({
+    changes: {from: 0, to: view.state.doc.length, insert: next},
+    selection: {anchor: 0}
+  })
+})
+
+watch(() => props.activeLineRange, (r) => applyActiveRange(r ?? null))
 </script>
 
 <template>
@@ -57,34 +142,47 @@ watch(() => props.activeLineRange, (r) => {
       </div>
     </div>
 
-    <div class="flex-1 grid grid-cols-[auto_1fr] min-h-0 overflow-hidden">
-      <!-- Gutter with line numbers + active-line highlight -->
-      <div
-        ref="gutterRef"
-        class="overflow-hidden border-r border-[var(--cy-border)] bg-[var(--cy-shell)] py-2 select-none"
-      >
-        <div
-          v-for="n in lineCount"
-          :key="n"
-          class="px-3 font-mono text-[11px] leading-relaxed tabular-nums text-end transition-colors"
-          :class="[
-            isActive(n)
-              ? 'text-[var(--cy-primary)] bg-[var(--cy-primary)]/10 font-bold'
-              : 'text-[var(--cy-fg-muted)]'
-          ]"
-        >
-          {{ n }}
-        </div>
-      </div>
-
-      <textarea
-        ref="editorRef"
-        v-model="code"
-        spellcheck="false"
-        :placeholder="t('app.sim.editor.placeholder')"
-        class="block w-full h-full p-2 bg-transparent font-mono text-[12px] leading-relaxed text-[var(--cy-fg)] resize-none focus:outline-none placeholder:text-[var(--cy-fg-muted)] overflow-auto"
-        @scroll="onScroll"
-      />
-    </div>
+    <ClientOnly>
+      <div ref="host" class="flex-1 min-h-0 overflow-hidden text-[13px]" />
+      <template #fallback>
+        <textarea
+          :value="modelValue"
+          spellcheck="false"
+          class="flex-1 w-full p-3 bg-transparent font-mono text-[12px] leading-relaxed text-[var(--cy-fg)] resize-none focus:outline-none"
+          readonly
+        />
+      </template>
+    </ClientOnly>
   </div>
 </template>
+
+<style>
+/* Make CM6 fill the panel + dim its default chrome to match the cyberpunk theme. */
+.cm-editor {
+  height: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+.cm-editor.cm-focused {
+  outline: none;
+}
+.cm-editor .cm-scroller {
+  line-height: 1.55;
+}
+.cm-editor .cm-gutters {
+  background: var(--cy-shell);
+  border-right: 1px solid var(--cy-border);
+  color: var(--cy-fg-muted);
+}
+.cm-editor .cm-activeLineGutter,
+.cm-editor .cm-activeLine {
+  background-color: transparent;
+}
+.cm-editor .cm-sim-active-line + .cm-activeLine {
+  background-color: rgba(0, 240, 255, 0.10);
+}
+.cm-editor .cm-sim-active-line .cm-gutterElement,
+.cm-editor .cm-sim-active-line.cm-gutterElement {
+  color: var(--cy-primary);
+  font-weight: 700;
+}
+</style>
