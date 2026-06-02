@@ -791,7 +791,14 @@
       },
       "console": {
         "label": "Console",
-        "empty": "// no messages yet."
+        "empty": "// no messages yet.",
+        "clear": "Clear"
+      },
+      "debug": {
+        "label": "Manual write (Phase 2 — until the parser lands)",
+        "valuePlaceholder": "0x...",
+        "write": "Write",
+        "invalid": "invalid value"
       },
       "ctrl": {
         "run": "Run",

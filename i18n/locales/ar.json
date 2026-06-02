@@ -791,7 +791,14 @@
       },
       "console": {
         "label": "السجل",
-        "empty": "// لا توجد رسائل."
+        "empty": "// لا توجد رسائل.",
+        "clear": "مسح"
+      },
+      "debug": {
+        "label": "كتابة يدوية (Phase 2 — حتى يصل الـ parser)",
+        "valuePlaceholder": "0x...",
+        "write": "كتابة",
+        "invalid": "قيمة غير صالحة"
       },
       "ctrl": {
         "run": "تشغيل",

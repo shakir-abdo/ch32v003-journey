@@ -7,21 +7,7 @@ const props = defineProps<{
   registers?: Array<RegisterDef & {value: number; flashedBits?: number[]}>
 }>()
 
-// stub data so the empty panel still demonstrates the bit grid
-const fallback = computed<Array<RegisterDef & {value: number; flashedBits?: number[]}>>(() => [
-  {name: 'RCC_CTLR',       address: 0x40021000, reset: 0x00000083, value: 0x00000083, peripheral: 'RCC'},
-  {name: 'RCC_CFGR0',      address: 0x40021004, reset: 0x00000000, value: 0x00000000, peripheral: 'RCC'},
-  {name: 'RCC_APB2PCENR',  address: 0x40021018, reset: 0x00000000, value: 0x00000000, peripheral: 'RCC'},
-  {name: 'RCC_RSTSCKR',    address: 0x40021024, reset: 0x0C000000, value: 0x0C000000, peripheral: 'RCC'},
-  {name: 'GPIOA_CFGLR',    address: 0x40010800, reset: 0x44444444, value: 0x44444444, peripheral: 'GPIOA'},
-  {name: 'GPIOA_OUTDR',    address: 0x4001080C, reset: 0x00000000, value: 0x00000000, peripheral: 'GPIOA'},
-  {name: 'GPIOC_CFGLR',    address: 0x40011000, reset: 0x44444444, value: 0x44444444, peripheral: 'GPIOC'},
-  {name: 'GPIOC_OUTDR',    address: 0x4001100C, reset: 0x00000000, value: 0x00000000, peripheral: 'GPIOC'},
-  {name: 'GPIOD_CFGLR',    address: 0x40011400, reset: 0x44444444, value: 0x44444444, peripheral: 'GPIOD'},
-  {name: 'GPIOD_OUTDR',    address: 0x4001140C, reset: 0x00000000, value: 0x00000000, peripheral: 'GPIOD'}
-])
-
-const list = computed(() => props.registers && props.registers.length ? props.registers : fallback.value)
+const list = computed(() => props.registers ?? [])
 
 const grouped = computed(() => {
   const map = new Map<string, typeof list.value>()
