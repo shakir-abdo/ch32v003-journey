@@ -5,7 +5,6 @@ const isRtl = computed(() => locale.value === 'ar')
 const props = defineProps<{
   running?: boolean
   halted?: boolean
-  canStep?: boolean
   speedMs: number
 }>()
 
@@ -23,15 +22,24 @@ const speed = computed({
   set: (v) => emit('update:speedMs', v)
 })
 
-// Use CSS-variable colours so the buttons stay legible on both light and
-// dark themes. The compile track-purple lives outside the cy-* palette,
-// so we keep it as a literal but darken it for light mode via color-mix.
+/**
+ * Run and Pause are mutually exclusive — fold them into one toggle button.
+ * The button's role flips based on `running`:
+ *   - running=false  →  Play icon + "Run" label, emits 'run'
+ *   - running=true   →  Pause icon + "Pause" label, emits 'pause'
+ * When halted, the button still shows Play but is disabled (the user has to
+ * Reset to start again).
+ */
+const playPause = computed(() => props.running
+  ? {icon: 'i-lucide-pause', label: t('app.sim.ctrl.pause'), color: 'var(--cy-warning)',  emit: 'pause' as const, disabled: false}
+  : {icon: 'i-lucide-play',  label: t('app.sim.ctrl.run'),   color: 'var(--cy-success)',  emit: 'run' as const,   disabled: props.halted === true}
+)
+
 const buttons = computed(() => [
-  {key: 'compile', icon: 'i-lucide-hammer',       label: t('app.sim.ctrl.compile'), color: 'var(--cy-track-pro, #B14AED)', emit: 'compile' as const, disabled: props.running},
-  {key: 'run',     icon: 'i-lucide-play',         label: t('app.sim.ctrl.run'),     color: 'var(--cy-success)',             emit: 'run' as const,     disabled: props.running || props.halted},
-  {key: 'pause',   icon: 'i-lucide-pause',        label: t('app.sim.ctrl.pause'),   color: 'var(--cy-warning)',             emit: 'pause' as const,   disabled: !props.running},
-  {key: 'step',    icon: 'i-lucide-step-forward', label: t('app.sim.ctrl.step'),    color: 'var(--cy-primary)',             emit: 'step' as const,    disabled: props.running || props.halted || props.canStep === false},
-  {key: 'reset',   icon: 'i-lucide-rotate-ccw',   label: t('app.sim.ctrl.reset'),   color: 'var(--cy-destructive)',         emit: 'reset' as const,   disabled: false}
+  {key: 'compile',  icon: 'i-lucide-hammer',       label: t('app.sim.ctrl.compile'), color: 'var(--cy-track-pro, #B14AED)', emit: 'compile' as const, disabled: props.running === true},
+  {key: 'playpause',icon: playPause.value.icon,    label: playPause.value.label,     color: playPause.value.color,            emit: playPause.value.emit, disabled: playPause.value.disabled},
+  {key: 'step',     icon: 'i-lucide-step-forward', label: t('app.sim.ctrl.step'),    color: 'var(--cy-primary)',              emit: 'step' as const,    disabled: props.running === true || props.halted === true},
+  {key: 'reset',    icon: 'i-lucide-rotate-ccw',   label: t('app.sim.ctrl.reset'),   color: 'var(--cy-destructive)',          emit: 'reset' as const,   disabled: false}
 ])
 
 /** Tinted border / background derived from a CSS-variable colour token. */
