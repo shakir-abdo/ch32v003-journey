@@ -769,6 +769,7 @@
     "header": {
       "home": "// HOME",
       "lessons": "// LESSONS",
+      "playground": "// PLAYGROUND",
       "about": "// ABOUT",
       "status": "[ONLINE]",
       "resources": "// RESOURCES"

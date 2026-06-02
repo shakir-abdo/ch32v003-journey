@@ -4,10 +4,11 @@ const {locale, locales, setLocale, t} = useI18n()
 const colorMode = useColorMode()
 
 const navItems = computed(() => [
-  {label: t('app.header.home'),      to: '/',          match: (p: string) => p === '/'},
-  {label: t('app.header.lessons'),   to: '/lessons',   match: (p: string) => p.startsWith('/lessons')},
-  {label: t('app.header.resources'), to: '/resources', match: (p: string) => p === '/resources'},
-  {label: t('app.header.about'),     to: '/about',     match: (p: string) => p === '/about'}
+  {label: t('app.header.home'),      to: '/',           match: (p: string) => p === '/'},
+  {label: t('app.header.lessons'),   to: '/lessons',    match: (p: string) => p.startsWith('/lessons')},
+  {label: t('app.header.playground'),to: '/playground', match: (p: string) => p.startsWith('/playground'), beta: true},
+  {label: t('app.header.resources'), to: '/resources',  match: (p: string) => p === '/resources'},
+  {label: t('app.header.about'),     to: '/about',      match: (p: string) => p === '/about'}
 ])
 
 const isActive = (item: {match: (p: string) => boolean}) => item.match(route.path)
@@ -43,7 +44,7 @@ const isDark = computed(() => colorMode.value === 'dark')
           v-for="item in navItems"
           :key="item.to"
           :to="item.to"
-          class="px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider transition-all"
+          class="px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider transition-all inline-flex items-center gap-1.5"
           :class="[
             isActive(item)
               ? 'text-[var(--cy-primary)] border-b border-[var(--cy-primary)]'
@@ -51,6 +52,16 @@ const isDark = computed(() => colorMode.value === 'dark')
           ]"
         >
           {{ item.label }}
+          <span
+            v-if="(item as any).beta"
+            class="font-mono text-[8px] tracking-wider px-1 py-px rounded-[1px] border"
+            :style="{
+              color: 'var(--cy-warning)',
+              borderColor: 'var(--cy-warning)',
+              background: 'rgba(255,184,0,0.08)',
+              boxShadow: '0 0 6px rgba(255,184,0,0.35)'
+            }"
+          >BETA</span>
         </NuxtLink>
       </nav>
 
