@@ -20,29 +20,102 @@ const {
   compile, step, run, pause, reset, clearConsole, manualWrite
 } = useSimulator()
 
-// Initial code: deep-link via ?example=<id>, else the first preset.
-const initialId = (route.query.example as string | undefined) ?? PRESETS[0]?.id ?? ''
+// ─── persistent state (localStorage) ───────────────────────────────
+// Stores the learner's last edit + which preset it was based on (so
+// "reset to default" knows what to restore to). Wrapped in a single
+// object so we keep one storage entry.
+interface SavedState {
+  presetId: string
+  code: string
+  savedAt: number
+}
+const savedState = useLocalStorage<SavedState | null>('ch32v003-journey:playground', null, {
+  serializer: {
+    read: (v) => { try { return v && v !== 'null' ? JSON.parse(v) : null } catch { return null } },
+    write: (v) => v ? JSON.stringify(v) : 'null'
+  }
+})
+
+// Initial preset: prefer query param, else last saved, else first preset.
+const presetFromQuery = route.query.example as string | undefined
+const initialId = presetFromQuery
+  || savedState.value?.presetId
+  || PRESETS[0]?.id || ''
+const currentPresetId = ref(initialId)
+
 const initialPreset = (initialId && PRESET_BY_ID.get(initialId)) || PRESETS[0]
-const code = ref(initialPreset?.code ?? '')
+const initialCode = (
+  // If the URL forces a preset, that wins (lesson "Try in playground" should always show the lesson's code, not the learner's stale local copy).
+  presetFromQuery
+    ? initialPreset?.code
+    : (savedState.value?.code ?? initialPreset?.code)
+) ?? ''
+const code = ref(initialCode)
 
 function loadPreset(id: string) {
   const p = PRESET_BY_ID.get(id)
   if (!p) return
+  currentPresetId.value = id
   code.value = p.code
   reset()
   consoleEntries.value.push({level: 'info', msg: `loaded preset: ${(p.title as any)[locale.value] ?? p.title.en}`})
+  persist()
 }
+
+function resetToDefault() {
+  const p = PRESET_BY_ID.get(currentPresetId.value)
+  if (!p) return
+  code.value = p.code
+  reset()
+  consoleEntries.value.push({level: 'info', msg: `restored ${(p.title as any)[locale.value] ?? p.title.en} to its original code`})
+  persist()
+}
+
+const hasUnsavedEdits = computed(() => {
+  const p = PRESET_BY_ID.get(currentPresetId.value)
+  return p ? p.code !== code.value : false
+})
+
+let persistTimer: ReturnType<typeof setTimeout> | null = null
+function persist() {
+  if (persistTimer) clearTimeout(persistTimer)
+  persistTimer = setTimeout(() => {
+    savedState.value = {
+      presetId: currentPresetId.value,
+      code: code.value,
+      savedAt: Date.now()
+    }
+  }, 400)
+}
+// Auto-save on every edit (debounced).
+watch(code, persist)
 
 // React to URL changes (someone clicks "Try in playground" while on the page).
 watch(() => route.query.example, (id) => {
   if (typeof id === 'string' && PRESET_BY_ID.has(id)) loadPreset(id)
 })
 
-function onRun()   { run(code.value) }
-function onPause() { pause() }
-function onStep()  { step(code.value) }
-function onReset() { reset() }
-function onCompile() { compile(code.value) }
+// ─── Tutorial overlay (first-visit only) ───────────────────────────
+const tutorialDismissed = useLocalStorage<boolean>('ch32v003-journey:playground-tutorial-seen', false)
+const tutorialOpen = ref(false)
+onMounted(() => {
+  if (!tutorialDismissed.value) tutorialOpen.value = true
+})
+function dismissTutorial() {
+  tutorialOpen.value = false
+  tutorialDismissed.value = true
+}
+function openTutorial() {
+  tutorialOpen.value = true
+}
+
+function onRun()       { run(code.value) }
+function onPause()     { pause() }
+function onStep()      { step(code.value) }
+function onReset()     { reset() }
+function onCompile()   { compile(code.value) }
+function onRestore()   { resetToDefault() }
+function onShowHelp()  { openTutorial() }
 
 function onManualWrite(address: number, value: number) {
   manualWrite(address, value)
@@ -80,9 +153,34 @@ function onManualWrite(address: number, value: number) {
 
     <!-- Simulator UI — visible on lg+ only -->
     <div class="hidden lg:block">
-    <!-- Preset picker -->
-    <div class="mb-4">
-      <SimPresetMenu @load="loadPreset" />
+    <!-- Preset picker + helpers -->
+    <div class="mb-4 flex items-stretch gap-3 flex-wrap">
+      <div class="flex-1 min-w-0">
+        <SimPresetMenu @load="loadPreset" />
+      </div>
+      <div class="cy-panel px-3 py-2 inline-flex items-center gap-2" dir="ltr">
+        <button
+          type="button"
+          :disabled="!hasUnsavedEdits"
+          class="inline-flex items-center gap-1.5 px-2.5 py-1.5 border rounded-[2px] font-mono text-[10px] uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          :style="{color: 'var(--cy-warning)', borderColor: 'var(--cy-warning)55', background: 'rgba(255,184,0,0.06)'}"
+          :title="t('app.sim.ctrl.restoreTitle')"
+          @click="onRestore"
+        >
+          <UIcon name="i-lucide-undo-2" class="size-3" />
+          {{ t('app.sim.ctrl.restore') }}
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 px-2.5 py-1.5 border rounded-[2px] font-mono text-[10px] uppercase tracking-wider transition-all"
+          :style="{color: 'var(--cy-primary)', borderColor: 'var(--cy-primary)55', background: 'rgba(0,240,255,0.06)'}"
+          :title="t('app.sim.ctrl.helpTitle')"
+          @click="onShowHelp"
+        >
+          <UIcon name="i-lucide-help-circle" class="size-3" />
+          {{ t('app.sim.ctrl.help') }}
+        </button>
+      </div>
     </div>
 
     <!-- Control bar -->
@@ -127,5 +225,8 @@ function onManualWrite(address: number, value: number) {
       <SimConsole :entries="consoleEntries" @clear="clearConsole" />
     </div>
     </div><!-- /lg:block -->
+
+    <!-- Tutorial overlay — auto-opens once per learner, re-openable via the Help button -->
+    <SimTutorial :open="tutorialOpen" @close="dismissTutorial" />
   </div>
 </template>
