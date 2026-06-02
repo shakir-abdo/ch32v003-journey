@@ -789,6 +789,15 @@
       "registers": {
         "label": "Registers (32-bit)"
       },
+      "presets": {
+        "label": "Ready-made examples",
+        "placeholder": "Pick an example…",
+        "hint": "Selecting one loads the code and resets the engine."
+      },
+      "tryHere": {
+        "button": "Try in the playground",
+        "title": "Open this lesson inside the simulator and watch the bits flip."
+      },
       "console": {
         "label": "Console",
         "empty": "// no messages yet.",
