@@ -64,11 +64,11 @@ html.light {
   --cy-muted: #EEF0F5;
   --cy-fg: #0B0B14;
   --cy-fg-muted: #6B6E80;
-  --cy-primary: #0090A0;        /* cyan, darker for contrast on light bg */
-  --cy-secondary: #C71A6E;      /* magenta, darker */
-  --cy-success: #009663;
-  --cy-warning: #B97200;
-  --cy-destructive: #C71F3F;
+  --cy-primary: #00707E;        /* darker teal for AA contrast on white */
+  --cy-secondary: #A91560;      /* magenta, darker for AA */
+  --cy-success: #007A50;
+  --cy-warning: #8C5400;        /* darker amber for AA */
+  --cy-destructive: #B91A37;
   --cy-border: rgba(0, 100, 130, 0.14);
   --cy-border-strong: rgba(0, 100, 130, 0.32);
   --cy-grid-line: rgba(0, 100, 130, 0.04);

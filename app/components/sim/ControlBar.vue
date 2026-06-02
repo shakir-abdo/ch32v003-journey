@@ -38,8 +38,8 @@ const buttons = computed(() => [
 function btnStyle(color: string) {
   return {
     color,
-    borderColor: `color-mix(in srgb, ${color} 45%, transparent)`,
-    background:  `color-mix(in srgb, ${color} 10%, transparent)`
+    borderColor: `color-mix(in srgb, ${color} 55%, transparent)`,
+    background:  `color-mix(in srgb, ${color} 14%, transparent)`
   }
 }
 </script>
