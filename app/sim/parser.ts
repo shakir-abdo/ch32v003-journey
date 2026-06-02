@@ -71,19 +71,28 @@ export function parse(source: string): ParseResult {
 function parseDirective(t: Token, warnings: string[]): Define | null {
   const raw = t.value.trim()
   if (raw.startsWith('#define')) {
-    const body = raw.slice('#define'.length).trim()
-    const m = body.match(/^([A-Za-z_][A-Za-z0-9_]*)(\s*\(.*?\))?\s*(.*)$/s)
-    if (!m) {
+    const body = raw.slice('#define'.length).trimStart()
+    const nameMatch = body.match(/^([A-Za-z_][A-Za-z0-9_]*)/)
+    if (!nameMatch) {
       warnings.push(`Line ${t.line}: ignored unparseable #define`)
       return null
     }
-    const name = m[1]!
-    const fnArgs = m[2]
-    const value = m[3] ?? ''
-    if (fnArgs) {
+    const name = nameMatch[1]!
+    let rest = body.slice(name.length)
+    // Function-like macros: `(` MUST immediately follow the name. A
+    // space before `(` means the macro is object-like and the `(` is
+    // part of its value.
+    if (rest.startsWith('(')) {
+      let depth = 0, i = 0
+      while (i < rest.length) {
+        if (rest[i] === '(') depth++
+        else if (rest[i] === ')') { depth--; if (depth === 0) { i++; break } }
+        i++
+      }
       warnings.push(`Line ${t.line}: function-like #define ${name}() not supported in v1, ignored`)
       return null
     }
+    const value = rest.trim()
     if (!value) {
       warnings.push(`Line ${t.line}: empty #define ${name} ignored`)
       return null

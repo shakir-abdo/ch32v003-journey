@@ -56,6 +56,10 @@ export function useSimulator() {
   const interpreterReady = ref(false)
   const halted     = ref(false)
   const running    = ref(false)
+  /** Per-step interval in ms. Read live by run() so the slider takes effect immediately. */
+  const speedMs    = ref(800)
+  /** Name of the register most recently touched — drives the auto-scroll. */
+  const lastChangedRegister = ref<string | null>(null)
 
   let interpreter: Interpreter | null = null
   let runTimer: ReturnType<typeof setTimeout> | null = null
@@ -144,16 +148,25 @@ export function useSimulator() {
 
   function applyStepDiff(writes: ReturnType<typeof bus.write>['writes'], pinChanges: ReturnType<typeof bus.write>['pinChanges']) {
     const flashed = new Map<number, number[]>()
+    let last: string | null = null
     for (const w of writes) {
       flashed.set(w.address, w.bitsFlipped)
+      last = w.register
       log('info', `WRITE ${w.register} : ${hex(w.oldValue)} → ${hex(w.newValue)} (bits: ${w.bitsFlipped.join(', ') || '—'})`)
     }
     for (const pc of pinChanges) log('info', `PIN ${pc.pin} : ${pc.oldStatus} → ${pc.newStatus}`)
+    if (last) lastChangedRegister.value = last
     flushSnapshot(flashed)
-    if (flashed.size > 0) setTimeout(() => flushSnapshot(), 700)
+    // Flash duration scales with run speed so a slow-step learner gets to
+    // see the bit highlight, while a fast-run user doesn't see overlap.
+    const flashMs = Math.max(300, Math.min(speedMs.value - 100, 1500))
+    if (flashed.size > 0) setTimeout(() => {
+      flushSnapshot()
+      lastChangedRegister.value = null
+    }, flashMs)
   }
 
-  function run(source: string, intervalMs = 120) {
+  function run(source: string) {
     if (!interpreter) {
       if (!compile(source)) return
     }
@@ -174,7 +187,8 @@ export function useSimulator() {
         applyStepDiff(r.writes, r.pinChanges)
         activeLineRange.value = r.lineRange
         if (r.log) log('info', r.log)
-        runTimer = setTimeout(tick, intervalMs)
+        // Read speedMs live each tick so the slider takes effect immediately.
+        runTimer = setTimeout(tick, speedMs.value)
       } catch (e) {
         running.value = false
         handleRuntimeError(e)
@@ -224,6 +238,8 @@ export function useSimulator() {
     interpreterReady,
     halted,
     running,
+    speedMs,
+    lastChangedRegister,
     compile,
     step,
     run,

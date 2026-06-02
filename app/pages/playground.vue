@@ -13,7 +13,7 @@ useSeoMeta({
 
 const {
   registers, pins, consoleEntries, activeLineRange,
-  running, halted,
+  running, halted, speedMs, lastChangedRegister,
   compile, step, run, pause, reset, clearConsole, manualWrite
 } = useSimulator()
 
@@ -67,6 +67,7 @@ function onManualWrite(address: number, value: number) {
     <!-- Control bar -->
     <div class="mb-4">
       <SimControlBar
+        v-model:speed-ms="speedMs"
         :running="running"
         :halted="halted"
         @run="onRun"
@@ -86,7 +87,7 @@ function onManualWrite(address: number, value: number) {
         <SimChipDiagram :pins="pins" />
       </div>
       <div class="min-h-[420px]">
-        <SimRegisterPanel :registers="registers" />
+        <SimRegisterPanel :registers="registers" :highlighted-register="lastChangedRegister" />
       </div>
     </div>
 

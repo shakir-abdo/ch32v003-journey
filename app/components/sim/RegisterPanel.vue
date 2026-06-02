@@ -5,6 +5,8 @@ const {t} = useI18n()
 
 const props = defineProps<{
   registers?: Array<RegisterDef & {value: number; flashedBits?: number[]}>
+  /** Name of the register that just changed — gets a glowing border + scrolls into view. */
+  highlightedRegister?: string | null
 }>()
 
 const list = computed(() => props.registers ?? [])
@@ -21,13 +23,36 @@ const grouped = computed(() => {
 function bitAt(value: number, i: number): 0 | 1 {
   return ((value >>> i) & 1) as 0 | 1
 }
-
 function hex(v: number): string {
   return '0x' + (v >>> 0).toString(16).toUpperCase().padStart(8, '0')
 }
-
 function isFlashed(r: {flashedBits?: number[]}, i: number) {
   return r.flashedBits?.includes(i) ?? false
+}
+function isHighlighted(name: string) {
+  return props.highlightedRegister === name
+}
+
+// Auto-scroll the highlighted register into view inside this panel only.
+const scrollRoot = ref<HTMLElement | null>(null)
+const regEls = ref<Record<string, HTMLElement | null>>({})
+
+watch(() => props.highlightedRegister, (name) => {
+  if (!name || !scrollRoot.value) return
+  const el = regEls.value[name]
+  if (!el) return
+  const root = scrollRoot.value
+  const elTop = el.offsetTop
+  const elBottom = elTop + el.offsetHeight
+  const viewTop = root.scrollTop
+  const viewBottom = viewTop + root.clientHeight
+  if (elTop < viewTop || elBottom > viewBottom) {
+    root.scrollTo({top: Math.max(0, elTop - root.clientHeight / 3), behavior: 'smooth'})
+  }
+})
+
+function regRef(el: Element | null, name: string) {
+  regEls.value[name] = el as HTMLElement | null
 }
 </script>
 
@@ -42,7 +67,7 @@ function isFlashed(r: {flashedBits?: number[]}, i: number) {
       </div>
     </div>
 
-    <div class="flex-1 overflow-y-auto p-3 space-y-4">
+    <div ref="scrollRoot" class="flex-1 overflow-y-auto p-3 space-y-4">
       <section v-for="[peri, regs] in grouped" :key="peri">
         <div class="font-mono text-[10px] uppercase tracking-wider text-[var(--cy-primary)] mb-2 flex items-center gap-2">
           <span class="size-1.5 rounded-full bg-[var(--cy-primary)] shadow-[0_0_4px_var(--cy-primary)]" />
@@ -52,7 +77,11 @@ function isFlashed(r: {flashedBits?: number[]}, i: number) {
           <div
             v-for="r in regs"
             :key="r.address"
-            class="border border-[var(--cy-border)] rounded-[2px] p-2 bg-[var(--cy-card-elev)]"
+            :ref="(el) => regRef(el as Element | null, r.name)"
+            class="border rounded-[2px] p-2 bg-[var(--cy-card-elev)] transition-all duration-300"
+            :class="isHighlighted(r.name)
+              ? 'border-[var(--cy-warning)] shadow-[0_0_18px_var(--cy-warning)] bg-[var(--cy-warning)]/5'
+              : 'border-[var(--cy-border)]'"
           >
             <div class="flex items-center justify-between mb-1.5 font-mono text-[10px]">
               <span class="text-[var(--cy-fg)] font-bold">{{ r.name }}</span>

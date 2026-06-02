@@ -807,6 +807,7 @@
         "pause": "إيقاف مؤقّت",
         "step": "خطوة",
         "reset": "إعادة",
+        "speed": "السرعة",
         "statusRunning": "// قيد التشغيل",
         "statusIdle": "// خامل",
         "statusHalted": "// متوقّف"

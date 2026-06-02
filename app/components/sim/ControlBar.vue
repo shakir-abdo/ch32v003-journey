@@ -5,6 +5,7 @@ const props = defineProps<{
   running?: boolean
   halted?: boolean
   canStep?: boolean
+  speedMs: number
 }>()
 
 const emit = defineEmits<{
@@ -13,7 +14,13 @@ const emit = defineEmits<{
   step: []
   reset: []
   compile: []
+  'update:speedMs': [value: number]
 }>()
+
+const speed = computed({
+  get: () => props.speedMs,
+  set: (v) => emit('update:speedMs', v)
+})
 
 const buttons = computed(() => [
   {key: 'compile', icon: 'i-lucide-hammer',       label: t('app.sim.ctrl.compile'), color: '#B14AED', emit: 'compile' as const, disabled: props.running},
@@ -25,7 +32,7 @@ const buttons = computed(() => [
 </script>
 
 <template>
-  <div class="cy-panel px-4 py-3 flex items-center gap-2 flex-wrap" dir="ltr">
+  <div class="cy-panel px-4 py-3 flex items-center gap-3 flex-wrap" dir="ltr">
     <button
       v-for="b in buttons"
       :key="b.key"
@@ -42,6 +49,25 @@ const buttons = computed(() => [
       <UIcon :name="b.icon" class="size-3.5" />
       {{ b.label }}
     </button>
+
+    <!-- Speed slider -->
+    <div class="flex items-center gap-2 ms-2 ps-3 border-s border-[var(--cy-border)]">
+      <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--cy-fg-muted)]">
+        {{ t('app.sim.ctrl.speed') }}
+      </span>
+      <input
+        v-model.number="speed"
+        type="range"
+        min="100"
+        max="2500"
+        step="50"
+        class="w-32 accent-[var(--cy-primary)] cursor-pointer"
+      >
+      <span class="font-mono text-[10px] tabular-nums text-[var(--cy-primary)] min-w-[3.5rem] text-end">
+        {{ speed }}ms
+      </span>
+    </div>
+
     <div class="flex-1" />
     <div class="font-mono text-[10px] uppercase tracking-wider text-[var(--cy-fg-muted)]">
       {{
