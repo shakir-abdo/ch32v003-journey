@@ -41,7 +41,7 @@ function styleOf(s: PinStatus) {
 </script>
 
 <template>
-  <div class="cy-panel p-6" dir="ltr">
+  <div class="cy-panel p-6 flex flex-col h-full" dir="ltr">
     <!-- header -->
     <div class="flex items-center justify-between mb-6">
       <div class="font-mono text-[10px] uppercase tracking-wider text-[var(--cy-fg-muted)]">
@@ -52,8 +52,8 @@ function styleOf(s: PinStatus) {
       </div>
     </div>
 
-    <!-- chip body + pin rows -->
-    <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+    <!-- chip body + pin rows — flex-1 so the diagram vertically centers when the panel grows -->
+    <div class="flex-1 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
       <!-- left pin column (pins 1-4) -->
       <div class="flex flex-col gap-3">
         <div

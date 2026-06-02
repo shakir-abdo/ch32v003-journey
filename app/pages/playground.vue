@@ -83,12 +83,12 @@ function onManualWrite(address: number, value: number) {
       <SimRegisterPanel :registers="registers" :highlighted-register="lastChangedRegister" />
     </div>
 
-    <!-- Row 2: Editor (2/3) + Chip (1/3) -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4" style="min-height: 520px;">
-      <div class="lg:col-span-2 min-h-[420px] flex flex-col">
+    <!-- Row 2: Editor (2/3) + Chip (1/3). Both stretch to the same height. -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4 items-stretch" style="min-height: 520px;">
+      <div class="lg:col-span-2 flex flex-col min-h-[420px]">
         <SimCodeEditor v-model="code" :active-line-range="activeLineRange" />
       </div>
-      <div class="lg:col-span-1">
+      <div class="lg:col-span-1 flex flex-col min-h-[420px]">
         <SimChipDiagram :pins="pins" />
       </div>
     </div>
