@@ -78,16 +78,18 @@ function onManualWrite(address: number, value: number) {
       />
     </div>
 
-    <!-- Three-pane layout -->
-    <div class="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-4 mb-4" style="min-height: 580px;">
-      <div class="min-h-[420px] flex flex-col">
+    <!-- Row 1: Registers (full width, internal 4-col grid) -->
+    <div class="mb-4">
+      <SimRegisterPanel :registers="registers" :highlighted-register="lastChangedRegister" />
+    </div>
+
+    <!-- Row 2: Editor (2/3) + Chip (1/3) -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4" style="min-height: 520px;">
+      <div class="lg:col-span-2 min-h-[420px] flex flex-col">
         <SimCodeEditor v-model="code" :active-line-range="activeLineRange" />
       </div>
-      <div>
+      <div class="lg:col-span-1">
         <SimChipDiagram :pins="pins" />
-      </div>
-      <div class="min-h-[420px]">
-        <SimRegisterPanel :registers="registers" :highlighted-register="lastChangedRegister" />
       </div>
     </div>
 

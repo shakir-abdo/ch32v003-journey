@@ -11,15 +11,6 @@ const props = defineProps<{
 
 const list = computed(() => props.registers ?? [])
 
-const grouped = computed(() => {
-  const map = new Map<string, typeof list.value>()
-  for (const r of list.value) {
-    if (!map.has(r.peripheral)) map.set(r.peripheral, [])
-    map.get(r.peripheral)!.push(r)
-  }
-  return [...map.entries()]
-})
-
 function bitAt(value: number, i: number): 0 | 1 {
   return ((value >>> i) & 1) as 0 | 1
 }
@@ -42,74 +33,79 @@ watch(() => props.highlightedRegister, (name) => {
   const el = regEls.value[name]
   if (!el) return
   const root = scrollRoot.value
-  const elTop = el.offsetTop
+  const elTop = el.offsetTop - root.offsetTop
   const elBottom = elTop + el.offsetHeight
   const viewTop = root.scrollTop
   const viewBottom = viewTop + root.clientHeight
   if (elTop < viewTop || elBottom > viewBottom) {
-    root.scrollTo({top: Math.max(0, elTop - root.clientHeight / 3), behavior: 'smooth'})
+    root.scrollTo({top: Math.max(0, elTop - 24), behavior: 'smooth'})
   }
 })
 
 function regRef(el: Element | null, name: string) {
   regEls.value[name] = el as HTMLElement | null
 }
+
+/** 32 bits arranged as 8 nibbles, MSB→LSB. Each nibble is rendered as a small 4-cell row with a gap between nibbles. */
+const NIBBLES = [28, 24, 20, 16, 12, 8, 4, 0] as const
 </script>
 
 <template>
-  <div class="cy-panel flex flex-col h-full" dir="ltr">
+  <div class="cy-panel flex flex-col" dir="ltr">
     <div class="px-4 py-2 border-b border-[var(--cy-border)] flex items-center justify-between">
       <div class="font-mono text-[10px] uppercase tracking-wider text-[var(--cy-fg-muted)]">
-        // {{ t('app.sim.registers.label') }}
+        // {{ t('app.sim.registers.label') }} ({{ list.length }})
       </div>
       <div class="font-mono text-[9px] uppercase tracking-wider text-[var(--cy-fg-muted)]">
-        MSB → LSB
+        MSB → LSB · nibble groups
       </div>
     </div>
 
-    <div ref="scrollRoot" class="flex-1 overflow-y-auto p-3 space-y-4">
-      <section v-for="[peri, regs] in grouped" :key="peri">
-        <div class="font-mono text-[10px] uppercase tracking-wider text-[var(--cy-primary)] mb-2 flex items-center gap-2">
-          <span class="size-1.5 rounded-full bg-[var(--cy-primary)] shadow-[0_0_4px_var(--cy-primary)]" />
-          {{ peri }}
-        </div>
-        <div class="space-y-2">
-          <div
-            v-for="r in regs"
-            :key="r.address"
-            :ref="(el) => regRef(el as Element | null, r.name)"
-            class="border rounded-[2px] p-2 bg-[var(--cy-card-elev)] transition-all duration-300"
-            :class="isHighlighted(r.name)
-              ? 'border-[var(--cy-warning)] shadow-[0_0_18px_var(--cy-warning)] bg-[var(--cy-warning)]/5'
-              : 'border-[var(--cy-border)]'"
-          >
-            <div class="flex items-center justify-between mb-1.5 font-mono text-[10px]">
-              <span class="text-[var(--cy-fg)] font-bold">{{ r.name }}</span>
-              <span class="text-[var(--cy-fg-muted)] tabular-nums">{{ hex(r.value) }}</span>
-            </div>
-            <!-- 32 bit cells -->
-            <div class="grid grid-cols-[repeat(32,minmax(0,1fr))] gap-px">
+    <div ref="scrollRoot" class="p-3 overflow-auto max-h-[60vh]">
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2">
+        <div
+          v-for="r in list"
+          :key="r.address"
+          :ref="(el) => regRef(el as Element | null, r.name)"
+          class="border rounded-[2px] p-2 bg-[var(--cy-card-elev)] transition-all duration-300"
+          :class="isHighlighted(r.name)
+            ? 'border-[var(--cy-warning)] shadow-[0_0_18px_var(--cy-warning)] bg-[var(--cy-warning)]/5'
+            : 'border-[var(--cy-border)]'"
+        >
+          <div class="flex items-center justify-between mb-1.5 font-mono text-[10px] gap-2">
+            <span class="text-[var(--cy-fg)] font-bold truncate">{{ r.name }}</span>
+            <span class="text-[var(--cy-fg-muted)] tabular-nums shrink-0">{{ hex(r.value) }}</span>
+          </div>
+
+          <!-- 32 bits in 8 nibbles with gap between nibbles -->
+          <div class="flex gap-1">
+            <div
+              v-for="(msbOfNibble, ni) in NIBBLES"
+              :key="ni"
+              class="flex-1 grid grid-cols-4 gap-px"
+            >
               <div
-                v-for="i in 32"
-                :key="i"
-                class="aspect-square grid place-items-center font-mono text-[9px] tabular-nums transition-colors duration-[400ms]"
+                v-for="k in 4"
+                :key="k"
+                class="aspect-square grid place-items-center font-mono text-[9px] tabular-nums transition-colors duration-[400ms] rounded-[1px]"
                 :class="[
-                  bitAt(r.value, 32 - i) === 1
-                    ? 'bg-[var(--cy-primary)]/20 text-[var(--cy-primary)]'
+                  bitAt(r.value, msbOfNibble - (k - 1)) === 1
+                    ? 'bg-[var(--cy-primary)]/25 text-[var(--cy-primary)]'
                     : 'bg-[var(--cy-muted)] text-[var(--cy-fg-muted)]',
-                  isFlashed(r, 32 - i) ? 'ring-1 ring-[var(--cy-warning)]' : ''
+                  isFlashed(r, msbOfNibble - (k - 1)) ? 'ring-1 ring-[var(--cy-warning)]' : ''
                 ]"
               >
-                {{ bitAt(r.value, 32 - i) }}
+                {{ bitAt(r.value, msbOfNibble - (k - 1)) }}
               </div>
             </div>
-            <!-- bit-index ruler every 4 bits -->
-            <div class="grid grid-cols-[repeat(8,minmax(0,1fr))] mt-0.5 font-mono text-[8px] text-[var(--cy-fg-muted)] tabular-nums">
-              <span v-for="g in 8" :key="g" class="text-center">{{ (32 - g * 4) }}</span>
-            </div>
+          </div>
+
+          <!-- nibble ruler (32, 28, 24, ... 0 at each nibble's MSB) -->
+          <div class="flex gap-1 mt-0.5 font-mono text-[8px] text-[var(--cy-fg-muted)] tabular-nums">
+            <span v-for="(msb, ni) in NIBBLES" :key="ni" class="flex-1 text-start">{{ msb + 3 }}</span>
           </div>
         </div>
-      </section>
+      </div>
     </div>
   </div>
 </template>
