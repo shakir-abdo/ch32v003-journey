@@ -90,9 +90,13 @@ export function makeSysTickHook(intc: InterruptController): WriteHook {
  * So period = CMP + 1 ticks. Set CMP=0 to effectively disable (CNT
  * never moves away from 0, no match transition is detected).
  */
-export function tickSysTick(bus: Bus, intc: InterruptController): void {
+export function tickSysTick(bus: Bus, intc: InterruptController): {writes?: import('../types').RegisterWrite[]; pinChanges?: import('../types').PinChange[]} | void {
   const ctlr = bus.read(STK_CTLR)
   if (!(ctlr & STE)) return
+
+  // Open an internal transaction so the STK_CNTL increment + optional
+  // STK_SR.CNTIF latch are collected into a diff the UI can flash.
+  bus.beginInternalTransaction()
 
   const cnt = bus.read(STK_CNTL)
   const cmp = bus.read(STK_CMPLR)
@@ -110,6 +114,7 @@ export function tickSysTick(bus: Bus, intc: InterruptController): void {
     }
   }
   bus.writeSilent(STK_CNTL, nextCnt)
+  return bus.endInternalTransaction()
 }
 
 export function resetSysTickWarnings(): void {

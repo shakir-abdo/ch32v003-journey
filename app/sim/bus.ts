@@ -229,6 +229,43 @@ export class Bus {
   pinSnapshot(): Map<string, PinStatus> {
     return new Map(this.lastPinStatus)
   }
+
+  /**
+   * Begin a transaction owned by an internal source (e.g. a peripheral
+   * tick) — no user-level write triggered it, but we still want
+   * writeSilent() calls inside to be collected into a diff that the UI
+   * can flash. Call `endInternalTransaction()` to retrieve the diff.
+   *
+   * NOTE: hooks are NOT fired automatically — internal transactions are
+   * meant for peripherals that already KNOW what they want to write. If
+   * the caller needs hook cascade, it should manually call write() or
+   * trigger via writeSilent during a public write().
+   */
+  beginInternalTransaction(): void {
+    this.txWrites = []
+    this.captureOldValues.clear()
+    for (const r of REGISTERS) {
+      this.captureOldValues.set(r.address, this.read(r.address))
+    }
+  }
+
+  endInternalTransaction(): {writes: RegisterWrite[]; pinChanges: PinChange[]} {
+    const writes = (this.txWrites ?? []).filter((w) => w.bitsFlipped.length > 0)
+    this.txWrites = null
+
+    const pinChanges: PinChange[] = []
+    if (this.pinModel) {
+      const next = this.pinModel.resolvePins(this)
+      for (const [pin, newStatus] of next) {
+        const oldStatus = this.lastPinStatus.get(pin)
+        if (oldStatus !== newStatus) {
+          pinChanges.push({pin, oldStatus: oldStatus ?? 'HI-Z', newStatus})
+        }
+      }
+      this.lastPinStatus = next
+    }
+    return {writes, pinChanges}
+  }
 }
 
 function bitsThatFlipped(oldVal: number, newVal: number): number[] {

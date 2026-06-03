@@ -74,8 +74,15 @@ interface ExecCursor {
   isr?: Vector
 }
 
-/** Optional per-step side-channel work the interpreter knows nothing about — e.g. ticking SysTick. */
-export type PostStepHook = (bus: Bus, intc: InterruptController) => void
+/**
+ * Optional per-step side-channel work the interpreter knows nothing
+ * about — e.g. ticking SysTick. Returns any register/pin diffs the hook
+ * caused, so the UI flashes them just like a user-driven write would.
+ */
+export type PostStepHook = (bus: Bus, intc: InterruptController) => {
+  writes?: RegisterWrite[]
+  pinChanges?: PinChange[]
+} | void
 
 export class Interpreter {
   private cursors: ExecCursor[] = []
@@ -149,9 +156,12 @@ export class Interpreter {
     }
 
     // After the statement, advance simulated time. Peripheral models that
-    // care (SysTick) hook in here.
+    // care (SysTick) hook in here. Their writes get merged into this
+    // step's diff so the UI flashes the affected registers.
     for (const h of this.hooks.postStep ?? []) {
-      h(this.bus, this.intc)
+      const r = h(this.bus, this.intc)
+      if (r?.writes) mergeWrites(writes, r.writes)
+      if (r?.pinChanges) pinChanges.push(...r.pinChanges)
     }
 
     return {
