@@ -1008,16 +1008,16 @@
         "cta": "View on GitHub"
       },
       "supportSection": "// SUPPORT",
-      "supportSub": "If this curriculum saves you hours, consider supporting future lessons.",
+      "supportSub": "If this curriculum saved you hours, a coffee says thanks and keeps future lessons coming.",
       "personalSite": {
         "title": "Personal site",
         "desc": "My other projects, writing, and contact info.",
         "cta": "shakir.sd"
       },
       "paypal": {
-        "title": "PayPal",
-        "desc": "A small tip helps keep this work freely available to learners.",
-        "cta": "Donate via PayPal"
+        "title": "Buy me a coffee",
+        "desc": "Enjoying the curriculum? Drop a coffee my way — no obligation, just appreciated.",
+        "cta": "Buy me a coffee"
       }
     },
     "resume": {
