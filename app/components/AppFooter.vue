@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const {t, locale} = useI18n()
+const localePath = useLocalePath()
 const year = new Date().getFullYear()
 const isRtl = computed(() => locale.value === 'ar')
 </script>
@@ -49,7 +50,7 @@ const isRtl = computed(() => locale.value === 'ar')
         <div class="font-mono text-[10px] uppercase tracking-wider text-[var(--cy-fg-muted)] mb-3 text-center">{{ t('app.footer.resources') }}</div>
         <ul class="space-y-2 font-mono text-[12px]" dir="ltr">
           <li>
-            <NuxtLink to="/resources" class="text-[var(--cy-fg)] hover:text-[var(--cy-primary)] transition-colors inline-flex items-center gap-2">
+            <NuxtLink :to="localePath('/resources')" class="text-[var(--cy-fg)] hover:text-[var(--cy-primary)] transition-colors inline-flex items-center gap-2">
               <UIcon name="i-lucide-package" class="size-3.5" />
               Hardware + projects
             </NuxtLink>

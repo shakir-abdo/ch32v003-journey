@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const {t, locale} = useI18n()
+const localePath = useLocalePath()
 const isRtl = computed(() => locale.value === 'ar')
 
 useSeoMeta({
@@ -107,7 +108,7 @@ const resumeColor = computed(() =>
     <ClientOnly>
       <NuxtLink
         v-if="resumeLesson && progress"
-        :to="`/lessons/${resumeLesson.slug}`"
+        :to="localePath(`/lessons/${resumeLesson.slug}`)"
         class="cy-panel mb-8 p-5 grid gap-4 group hover:no-underline relative overflow-hidden"
         :style="{borderColor: resumeColor + '55'}"
       >
@@ -229,7 +230,7 @@ const resumeColor = computed(() =>
         <NuxtLink
           v-for="l in items"
           :key="l.slug"
-          :to="`/lessons/${l.slug}`"
+          :to="localePath(`/lessons/${l.slug}`)"
           class="cy-panel p-4 flex items-center gap-4 group hover:no-underline"
         >
           <!-- Order chip -->

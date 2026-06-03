@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const {t, locale} = useI18n()
+const localePath = useLocalePath()
 const isRtl = computed(() => locale.value === 'ar')
 
 useSeoMeta({
@@ -97,11 +98,11 @@ const subtitleField = computed(() => locale.value === 'ar' ? 'title_en' : 'title
 
         <!-- CTAs — centered -->
         <div class="mt-10 flex flex-wrap justify-center gap-3" dir="ltr">
-          <NuxtLink to="/lessons" class="cy-btn cy-btn-solid">
+          <NuxtLink :to="localePath('/lessons')" class="cy-btn cy-btn-solid">
             <UIcon name="i-lucide-play" class="size-4" :class="isRtl ? 'rotate-180' : ''" />
             {{ t('app.landing.ctaStart') }}
           </NuxtLink>
-          <NuxtLink to="/lessons/l00-curriculum-overview" class="cy-btn">
+          <NuxtLink :to="localePath('/lessons/l00-curriculum-overview')" class="cy-btn">
             <UIcon name="i-lucide-map" class="size-4" />
             {{ t('app.landing.ctaCurriculum') }}
           </NuxtLink>
@@ -146,7 +147,7 @@ const subtitleField = computed(() => locale.value === 'ar' ? 'title_en' : 'title
             {{ t('app.landing.sectionTracksTitle') }}
           </h2>
         </div>
-        <NuxtLink to="/lessons" class="font-mono text-[11px] uppercase tracking-wider text-[var(--cy-primary)] hover:text-white">
+        <NuxtLink :to="localePath('/lessons')" class="font-mono text-[11px] uppercase tracking-wider text-[var(--cy-primary)] hover:text-white">
           {{ t('app.landing.sectionTracksAll') }}
         </NuxtLink>
       </div>
@@ -189,7 +190,7 @@ const subtitleField = computed(() => locale.value === 'ar' ? 'title_en' : 'title
         <NuxtLink
           v-for="l in lessons?.slice(0, 6) ?? []"
           :key="l.slug"
-          :to="`/lessons/${l.slug}`"
+          :to="localePath(`/lessons/${l.slug}`)"
           class="cy-panel p-5 block group hover:no-underline"
         >
           <div class="flex items-center justify-between gap-2 mb-3" dir="ltr">
@@ -226,7 +227,7 @@ const subtitleField = computed(() => locale.value === 'ar' ? 'title_en' : 'title
           <p class="text-[var(--cy-fg-muted)] max-w-xl mx-auto mb-6">
             {{ t('app.landing.ctaSection.body') }}
           </p>
-          <NuxtLink to="/lessons/l00-curriculum-overview" class="cy-btn cy-btn-solid">
+          <NuxtLink :to="localePath('/lessons/l00-curriculum-overview')" class="cy-btn cy-btn-solid">
             {{ t('app.landing.ctaSection.button') }}
           </NuxtLink>
         </div>

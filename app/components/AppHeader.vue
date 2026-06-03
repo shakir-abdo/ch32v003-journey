@@ -1,14 +1,15 @@
 <script setup lang="ts">
 const route = useRoute()
 const {locale, locales, setLocale, t} = useI18n()
+const localePath = useLocalePath()
 const colorMode = useColorMode()
 
 const navItems = computed(() => [
-  {label: t('app.header.home'),      to: '/',           match: (p: string) => p === '/'},
-  {label: t('app.header.lessons'),   to: '/lessons',    match: (p: string) => p.startsWith('/lessons')},
-  {label: t('app.header.playground'),to: '/playground', match: (p: string) => p.startsWith('/playground'), beta: true},
-  {label: t('app.header.resources'), to: '/resources',  match: (p: string) => p === '/resources'},
-  {label: t('app.header.about'),     to: '/about',      match: (p: string) => p === '/about'}
+  {label: t('app.header.home'),      to: localePath('/'),           match: (p: string) => p === '/' || p === '/en' || p === '/en/'},
+  {label: t('app.header.lessons'),   to: localePath('/lessons'),    match: (p: string) => p.startsWith('/lessons') || p.startsWith('/en/lessons')},
+  {label: t('app.header.playground'),to: localePath('/playground'), match: (p: string) => p.startsWith('/playground') || p.startsWith('/en/playground'), beta: true},
+  {label: t('app.header.resources'), to: localePath('/resources'),  match: (p: string) => p === '/resources' || p === '/en/resources'},
+  {label: t('app.header.about'),     to: localePath('/about'),      match: (p: string) => p === '/about' || p === '/en/about'}
 ])
 
 const isActive = (item: {match: (p: string) => boolean}) => item.match(route.path)
@@ -37,7 +38,7 @@ watch(() => route.fullPath, () => { mobileOpen.value = false })
 <template>
   <header class="sticky top-0 z-50 bg-[var(--cy-shell)]/95 backdrop-blur-md border-b border-[var(--cy-border)]">
     <div class="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between gap-4" :dir="isRtl ? 'rtl' : 'ltr'">
-      <NuxtLink to="/" class="group flex items-center gap-3 font-mono text-sm uppercase tracking-wider" dir="ltr">
+      <NuxtLink :to="localePath('/')" class="group flex items-center gap-3 font-mono text-sm uppercase tracking-wider" dir="ltr">
         <span class="size-2 rounded-full bg-[var(--cy-primary)] shadow-[0_0_8px_var(--cy-primary)] animate-pulse" />
         <span class="text-[var(--cy-fg)] font-bold group-hover:text-[var(--cy-primary)] transition-colors">
           CH32V003<span class="text-[var(--cy-primary)]">::</span>JOURNEY

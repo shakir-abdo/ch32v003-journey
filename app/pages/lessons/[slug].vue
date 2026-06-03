@@ -3,6 +3,7 @@ import {PRESETS_BY_LESSON} from '~/sim/presets'
 
 const route = useRoute()
 const {t, locale} = useI18n()
+const localePath = useLocalePath()
 const isRtl = computed(() => locale.value === 'ar')
 const slug = computed(() => String(route.params.slug))
 const lessonPresets = computed(() => PRESETS_BY_LESSON.get(slug.value) ?? [])
@@ -116,9 +117,9 @@ onBeforeUnmount(() => {
   <div class="max-w-4xl mx-auto px-6 py-10">
     <!-- Breadcrumb -->
     <nav class="mb-6 font-mono text-[11px] uppercase tracking-wider text-[var(--cy-fg-muted)] flex items-center gap-2" dir="ltr">
-      <NuxtLink to="/" class="hover:text-[var(--cy-primary)]">{{ t('app.reader.crumbHome') }}</NuxtLink>
+      <NuxtLink :to="localePath('/')" class="hover:text-[var(--cy-primary)]">{{ t('app.reader.crumbHome') }}</NuxtLink>
       <span>/</span>
-      <NuxtLink to="/lessons" class="hover:text-[var(--cy-primary)]">{{ t('app.reader.crumbLessons') }}</NuxtLink>
+      <NuxtLink :to="localePath('/lessons')" class="hover:text-[var(--cy-primary)]">{{ t('app.reader.crumbLessons') }}</NuxtLink>
       <span>/</span>
       <span class="text-[var(--cy-fg)]">L{{ String(lesson?.order).padStart(2, '0') }}</span>
     </nav>
@@ -161,7 +162,7 @@ onBeforeUnmount(() => {
         <NuxtLink
           v-for="p in lessonPresets"
           :key="p.id"
-          :to="`/playground?example=${p.id}`"
+          :to="localePath(`/playground?example=${p.id}`)"
           class="inline-flex items-center gap-2 px-3 py-2 border rounded-[2px] font-mono text-[11px] uppercase tracking-wider transition-all hover:no-underline"
           :style="{
             color: tColor,
@@ -178,8 +179,8 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
-    <!-- Lesson body — content is Arabic-only for now, so keep dir=rtl -->
-    <article class="cy-prose" dir="rtl">
+    <!-- Lesson body — direction follows the active locale. -->
+    <article class="cy-prose" :dir="isRtl ? 'rtl' : 'ltr'">
       <ContentRenderer v-if="lesson" :value="lesson" />
     </article>
 
@@ -187,7 +188,7 @@ onBeforeUnmount(() => {
     <nav class="mt-12 pt-6 border-t border-[var(--cy-border)] grid sm:grid-cols-2 gap-3" :dir="isRtl ? 'rtl' : 'ltr'">
       <NuxtLink
         v-if="prev"
-        :to="`/lessons/${prev.slug}`"
+        :to="localePath(`/lessons/${prev.slug}`)"
         class="cy-panel p-4 group hover:no-underline"
       >
         <div class="font-mono text-[10px] uppercase tracking-wider text-[var(--cy-fg-muted)] mb-1 flex items-center gap-1">
@@ -202,7 +203,7 @@ onBeforeUnmount(() => {
 
       <NuxtLink
         v-if="next"
-        :to="`/lessons/${next.slug}`"
+        :to="localePath(`/lessons/${next.slug}`)"
         class="cy-panel p-4 group hover:no-underline"
         :class="isRtl ? 'text-left' : 'text-right'"
       >
