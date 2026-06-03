@@ -16,7 +16,7 @@ useSeoMeta({
 
 const {
   registers, pins, consoleEntries, activeLineRange,
-  running, halted, paused, speedMs, lastChangedRegister, highlightedRegisters,
+  running, halted, paused, speedMs, tickMultiplier, lastChangedRegister, highlightedRegisters,
   compile, step, run, pause, reset, clearConsole, manualWrite
 } = useSimulator()
 
@@ -195,6 +195,7 @@ function onManualWrite(address: number, value: number) {
     <div class="mb-4">
       <SimControlBar
         v-model:speed-ms="speedMs"
+        v-model:tick-multiplier="tickMultiplier"
         :running="running"
         :halted="halted"
         :paused="paused"

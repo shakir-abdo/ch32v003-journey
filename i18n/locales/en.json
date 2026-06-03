@@ -824,6 +824,8 @@
         "step": "Step",
         "reset": "Reset",
         "speed": "Speed",
+        "tickRate": "SysTick ticks",
+        "tickRateTitle": "How many SysTick ticks each interpreter step advances. Crank it up to compress simulated time toward real hardware rate (e.g. ×1M with CMP=4M finishes one cycle in ~4 steps).",
         "restore": "Restore",
         "restoreTitle": "Reset the code back to the preset's original (discards your edits).",
         "help": "Help",

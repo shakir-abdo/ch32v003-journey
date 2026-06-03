@@ -75,6 +75,13 @@ export function useSimulator() {
   const paused     = ref(false)
   /** Per-step interval in ms. Read live by run() so the slider takes effect immediately. */
   const speedMs    = ref(800)
+  /**
+   * How many SysTick ticks each interpreter statement advances. Default 1
+   * gives the educational "1 statement = 1 tick" view. Crank up to compress
+   * simulated time so SysTick blink with realistic CMP values (e.g. 4M) is
+   * watchable in seconds instead of weeks.
+   */
+  const tickMultiplier = ref(1)
   /** Names of every register touched in the current flash window — drives the glow ring. */
   const highlightedRegisters = ref<Set<string>>(new Set())
   /** Single register the panel auto-scrolls to — first one in the diff. */
@@ -138,9 +145,13 @@ export function useSimulator() {
       const {program, macros, warnings} = parse(source)
       const intc = getIntc()
       resetSysTickWarnings()
+      // tickSysTick is wrapped so the live tickMultiplier ref is consulted
+      // on every step — the slider takes effect immediately, even mid-run.
+      const sysTickWithMultiplier = (bus2: typeof bus, intc2: typeof intc) =>
+        tickSysTick(bus2, intc2, tickMultiplier.value)
       interpreter = new Interpreter(program, bus, macros, intc, {
         onLog: (lvl, m) => log(lvl, m),
-        postStep: [tickSysTick]
+        postStep: [sysTickWithMultiplier]
       })
       for (const w of warnings) log('warn', w)
       interpreterReady.value = true
@@ -301,6 +312,7 @@ export function useSimulator() {
     running,
     paused,
     speedMs,
+    tickMultiplier,
     lastChangedRegister,
     highlightedRegisters,
     compile,
