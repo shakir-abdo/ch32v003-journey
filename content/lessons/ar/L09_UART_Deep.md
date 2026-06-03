@@ -1,7 +1,7 @@
 ---
 order: 9
 slug: "l09-uart-deep"
-title: "UART العميق"
+title: "تعمّق في UART"
 title_en: "UART Deep Dive"
 icon: "i-lucide-cable"
 track: "comm"
@@ -10,7 +10,7 @@ minutes: 35
 tags: ["uart", "serial"]
 ---
 
-# الدرس 09: UART العميق — Interrupts, Ring Buffer, printf مخصّص
+# الدرس 09: تعمّق في UART — Interrupts, Ring Buffer, printf مخصّص
 
 > **المرجع:** CH32V003 RM v1.9 — الفصل 12 "USART" — صفحات 138–150.
 >

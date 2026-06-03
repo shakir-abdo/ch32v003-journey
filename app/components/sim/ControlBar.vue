@@ -89,7 +89,7 @@ function iconClass(name: string): string {
       :key="b.key"
       type="button"
       :disabled="b.disabled"
-      class="inline-flex items-center gap-2 px-3 py-1.5 border rounded-[2px] font-mono text-[11px] uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+      class="inline-flex items-center gap-2 px-3 py-1.5 border rounded-[2px] font-mono text-[11px] uppercase tracking-wider transition-all duration-100 enabled:hover:brightness-125 enabled:active:scale-[0.94] enabled:active:brightness-90 disabled:opacity-40 disabled:cursor-not-allowed"
       :style="btnStyle(b.color)"
       @click="emit(b.emit)"
     >

@@ -78,7 +78,7 @@ export function makeSysTickHook(intc: InterruptController): WriteHook {
 }
 
 /**
- * Called by the interpreter after each statement. Increments CNT and,
+ * Called by the interpreter after each statement. Advances CNT and,
  * on a 0→CMP transition, latches CNTIF + raises the SysTick interrupt.
  *
  * Counting order (CMP=5 example):
@@ -89,6 +89,12 @@ export function makeSysTickHook(intc: InterruptController): WriteHook {
  *   tick 7: CNT 0 → 1, …
  * So period = CMP + 1 ticks. Set CMP=0 to effectively disable (CNT
  * never moves away from 0, no match transition is detected).
+ *
+ * Implementation: O(1) regardless of ticksPerStep. We jump straight to
+ * either the match (if it falls inside this step's budget) or to the
+ * end-of-budget counter value. A naive per-tick loop would do 1 M Map
+ * reads/writes per step when the user drags the ticks slider to ×1M,
+ * which made the playground unusable for hardware-realistic CMP values.
  */
 export function tickSysTick(
   bus: Bus,
@@ -98,44 +104,53 @@ export function tickSysTick(
   const ctlr = bus.read(STK_CTLR)
   if (!(ctlr & STE)) return
 
-  // Open an internal transaction so the STK_CNTL increment + optional
-  // STK_SR.CNTIF latch are collected into a diff the UI can flash.
   bus.beginInternalTransaction()
 
   const cmp = bus.read(STK_CMPLR)
   const safeTicks = Math.max(1, Math.floor(ticksPerStep))
 
-  for (let i = 0; i < safeTicks; i++) {
-    const cnt = bus.read(STK_CNTL)
-    let nextCnt: number
-    if (cnt === cmp) {
-      // We sat at the compare value last tick — wrap on this one.
-      nextCnt = 0
-    } else {
-      nextCnt = (cnt + 1) >>> 0
-      if (nextCnt === cmp) {
-        // 0→CMP transition. Latch CNTIF and raise if interrupts enabled.
-        bus.writeSilent(STK_SR, bus.read(STK_SR) | CNTIF)
-        if (ctlr & STIE) {
-          intc.raise('SysTick')
-          // PFIC gate check: STIE+CNTIF on, but PFIC_IENR1.bit12 is 0.
-          // Real hardware would silently swallow the IRQ; warn once so
-          // the learner knows what's missing.
-          if (!intc.isEnabled('SysTick')) {
-            intc.warnPficGate('SysTick', () => {
-              bus.warn('SysTick CNTIF latched + STIE on, but PFIC bit 12 is off — the IRQ never reaches the core. Add PFIC_IENR1 |= (1 << 12); to enable it (CH32V003 RM §6.5.2.11).')
-            })
-          }
+  // CMP=0 → counter never moves from 0, no match ever fires.
+  if (cmp === 0) {
+    return bus.endInternalTransaction()
+  }
+
+  let cnt = bus.read(STK_CNTL)
+  let remaining = safeTicks
+
+  // If we're sitting at CMP from the previous match, consume one tick
+  // to wrap the counter back to 0.
+  if (cnt === cmp) {
+    cnt = 0
+    remaining--
+  }
+
+  if (remaining > 0) {
+    const ticksToMatch = cmp - cnt
+    if (ticksToMatch <= remaining) {
+      // Match within this step. Advance to CMP, latch CNTIF, raise the
+      // IRQ if STIE is on. We stop here even if more budget remains:
+      // a step shows "one fire", matching the prior break-on-pending
+      // semantics so the visualisation stays clean.
+      cnt = cmp
+      bus.writeSilent(STK_SR, bus.read(STK_SR) | CNTIF)
+      if (ctlr & STIE) {
+        intc.raise('SysTick')
+        // PFIC gate check: STIE+CNTIF on, but PFIC_IENR1.bit12 is 0.
+        // Real hardware would silently swallow the IRQ; warn once so
+        // the learner knows what's missing.
+        if (!intc.isEnabled('SysTick')) {
+          intc.warnPficGate('SysTick', () => {
+            bus.warn('SysTick CNTIF latched + STIE on, but PFIC bit 12 is off — the IRQ never reaches the core. Add PFIC_IENR1 |= (1 << 12); to enable it (CH32V003 RM §6.5.2.11).')
+          })
         }
       }
+    } else {
+      // No match this step — just advance toward CMP.
+      cnt = (cnt + remaining) >>> 0
     }
-    bus.writeSilent(STK_CNTL, nextCnt)
-    // Stop early if an IRQ raised AND there's no point spinning further
-    // through the rest of the tick budget — the ISR will run on the
-    // next step anyway. This keeps the visualisation clean: a single
-    // step that "fires once" rather than "fires many times silently".
-    if (intc.isPending('SysTick')) break
   }
+
+  bus.writeSilent(STK_CNTL, cnt)
   return bus.endInternalTransaction()
 }
 

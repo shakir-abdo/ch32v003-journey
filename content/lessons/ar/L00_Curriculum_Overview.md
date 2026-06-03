@@ -91,7 +91,7 @@ tags: ["intro", "roadmap"]
 
 | # | الدرس | الموضوع | المدّة |
 |---|------|---------|-------|
-| [L09](/lessons/l09-uart-deep) | UART العميق | Interrupts + Ring Buffer + printf مخصّص | 35 د |
+| [L09](/lessons/l09-uart-deep) | تعمّق في UART | Interrupts + Ring Buffer + printf مخصّص | 35 د |
 | [L10](/lessons/l10-spi) | SPI — Master mode | حسّاسات سريعة، ذواكر EEPROM | 35 د |
 | [L11](/lessons/l11-i2c-oled) | I2C + تشغيل OLED SSD1306 | نص حيّ على شاشة | 35 د |
 
