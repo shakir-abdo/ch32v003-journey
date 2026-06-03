@@ -97,9 +97,10 @@ function iconClass(name: string): string {
       {{ b.label }}
     </button>
 
-    <!-- Step interval (sim pace) and SysTick ticks-per-step (sim→hw time compression).
-         Both sliders stay LTR so low→high left→right is universal. -->
-    <div class="flex items-center gap-2 ms-2 ps-3 border-s border-[var(--cy-border)]" dir="ltr">
+    <!-- Step interval (sim pace) and SysTick ticks-per-step (sim→hw time
+         compression). Both wrappers inherit the parent's dir so labels and
+         values flow with the active language; the slider track mirrors too. -->
+    <div class="flex items-center gap-2 ms-2 ps-3 border-s border-[var(--cy-border)]">
       <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--cy-fg-muted)]">
         {{ t('app.sim.ctrl.speed') }}
       </span>
@@ -115,7 +116,7 @@ function iconClass(name: string): string {
         {{ speed }}ms
       </span>
     </div>
-    <div class="flex items-center gap-2" dir="ltr" :title="t('app.sim.ctrl.tickRateTitle')">
+    <div class="flex items-center gap-2" :title="t('app.sim.ctrl.tickRateTitle')">
       <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--cy-fg-muted)]">
         {{ t('app.sim.ctrl.tickRate') }}
       </span>
