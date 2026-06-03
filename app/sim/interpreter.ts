@@ -623,13 +623,13 @@ export class Interpreter {
     switch (e.callee) {
       case 'Delay_Ms':
       case 'Delay_Us':
-        setLog(`${e.callee}(${args.join(', ')}) — timing not modelled (simulator skips delays)`)
+        this.hooks.onLog?.('warn', `${e.callee}() is a ch32v003fun framework function — this curriculum is bare-metal, so it won't link on real hardware. Replace it with an inline busy-wait (\`for (int i = 0; i < N; i = i + 1) {}\`) or a SysTick-based delay (see the systick-blink preset).`)
         return 0
       case 'main':
         // calling main() recursively is a no-op for v1
         return 0
       default:
-        this.hooks.onLog?.('warn', `function ${e.callee} is not supported by the simulator — call ignored`)
+        this.hooks.onLog?.('warn', `function ${e.callee}() is defined in your code but the simulator doesn't run user-defined functions yet — call skipped. Inline the body if you need it to execute.`)
         return 0
     }
   }

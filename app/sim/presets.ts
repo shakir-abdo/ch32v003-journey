@@ -58,7 +58,7 @@ export const PRESETS: Preset[] = [
     id: 'blink-pc1',
     lessonSlug: 'l03-gpio-output',
     title:       {ar: 'وميض PC1', en: 'Blink PC1'},
-    description: {ar: 'أبسط مثال — تشغيل ساعة GPIOC، تهيئة PC1 كخرج، ثم Toggle.', en: 'Simplest example — enable GPIOC clock, configure PC1 as output, toggle.'},
+    description: {ar: 'أبسط مثال — تشغيل ساعة GPIOC، تهيئة PC1 كخرج، ثم Toggle مع busy-wait صغير. مناسب bare-metal بدون اعتماد على إطار خارجي.', en: 'Simplest example — enable GPIOC clock, configure PC1 as output, toggle with a small busy-wait. True bare-metal, no framework function calls.'},
     code: `${COMMON_DEFINES}
 int main() {
   // 1) clock-gate GPIOC on (APB2PCENR bit 4)
@@ -69,12 +69,15 @@ int main() {
   GPIOC_CFGLR &= ~(0xF << (4 * 1));
   GPIOC_CFGLR |=  (0x3 << (4 * 1));   // MODE=11, CNF=00
 
-  // 3) toggle PC1 forever
+  // 3) toggle PC1 forever, with a tiny busy-wait between transitions
+  //    In the simulator each loop iteration is one step, so a small
+  //    count like 5 is plenty to watch. On real hardware, scale it
+  //    up (e.g. 500000) to get a visible blink.
   while (1) {
-    GPIOC_BSHR = (1 << 1);   // PC1 HIGH (atomic set)
-    Delay_Ms(500);
-    GPIOC_BCR  = (1 << 1);   // PC1 LOW  (atomic clear)
-    Delay_Ms(500);
+    GPIOC_BSHR = (1 << 1);                  // PC1 HIGH (atomic set)
+    for (int i = 0; i < 5; i = i + 1) { }   // busy-wait
+    GPIOC_BCR  = (1 << 1);                  // PC1 LOW  (atomic clear)
+    for (int i = 0; i < 5; i = i + 1) { }
   }
 }
 `
@@ -94,10 +97,10 @@ int main() {
   GPIOC_CFGLR |=  (0x3 << (4 * 4));      // PP output, 50 MHz
 
   while (1) {
-    GPIOC_BSHR = (1 << 4);   // PC4 HIGH
-    Delay_Ms(500);
-    GPIOC_BCR  = (1 << 4);   // PC4 LOW
-    Delay_Ms(500);
+    GPIOC_BSHR = (1 << 4);                  // PC4 HIGH
+    for (int i = 0; i < 5; i = i + 1) { }
+    GPIOC_BCR  = (1 << 4);                  // PC4 LOW
+    for (int i = 0; i < 5; i = i + 1) { }
   }
 }
 `
