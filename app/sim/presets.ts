@@ -182,34 +182,49 @@ int main() {
     id: 'systick-blink',
     lessonSlug: 'l06-systick',
     title:       {ar: 'وميض عبر SysTick', en: 'Blink with SysTick'},
-    description: {ar: 'إعداد SysTick بقيمة مقارنة صغيرة + تفعيل PFIC + ISR يقلب PC1. لاحظ STK_CNTL يعدّ، CNTIF يضيء عند المطابقة، PFIC_ISR1 bit 12 مرفوع، ثم يعمل الـ handler.', en: 'Set up SysTick with a small CMP, enable it in PFIC, and let the ISR toggle PC1. Watch STK_CNTL count, CNTIF latch, PFIC_ISR1 bit 12 raised, then the handler runs.'},
+    description: {ar: 'إعداد SysTick + PFIC + mstatus.MIE + ISR. يعمل في الـ playground (مع slider ticks) وعلى العتاد الحقيقي بنفس الكود.', en: 'Set up SysTick + PFIC + mstatus.MIE + the ISR. Same code works in the playground (use the ticks slider) AND on real silicon.'},
     code: `${COMMON_DEFINES}
-// SysTick CMP=5 in the sim means: the handler fires every 6 steps
-// (CNT goes 0→1→2→3→4→5 [fire] → 0 …). On a real chip you'd use
-// 48000-1 for 1 ms — but here each statement is one tick.
+// ─── SysTick blink — portable to real CH32V003J4M6 hardware ──────────
+//
+// In the simulator: at default ticks×1 you'd be waiting forever for
+// CMP=4M-1 to fire. Drag the "SysTick ticks" slider to ×1M and Speed
+// to ~125 ms — then the handler fires every ~4 steps just like the
+// 1 Hz blink you'd see on real silicon (HCLK = 24 MHz / HPRE 3 = 8 MHz,
+// STCLK = 1 ⇒ SysTick clock = 8 MHz, period = (CMP+1)/8M = 0.5 s/fire).
 
-int main() {
+// __attribute__((interrupt)) is required on the QingKe V2 core so the
+// compiler emits the right context-save/restore + mret on return. The
+// simulator silently ignores it.
+__attribute__((interrupt)) void SysTick_Handler(void) {
+  STK_SR = 0;                          // clear CNTIF (write-0-to-clear)
+  GPIOC_OUTDR ^= (1 << 1);             // toggle PC1
+}
+
+int main(void) {
   RCC_APB2PCENR |= (1 << 4);           // GPIOC clock on
   GPIOC_CFGLR &= ~(0xF << (4*1));
   GPIOC_CFGLR |=  (0x3 << (4*1));      // PC1 = PP output 50 MHz
 
-  STK_CMPLR = 5;                       // small CMP so we see fires quickly
+  STK_CMPLR = 4000000 - 1;             // 1 Hz blink on real hw
   STK_CNTL  = 0;
-  STK_CTLR  = (1 << 0) | (1 << 1) | (1 << 3);  // STE | STIE | STRE
+  STK_CTLR  = (1 << 0)   // STE     — start the counter
+            | (1 << 1)   // STIE    — enable match-interrupt
+            | (1 << 2)   // STCLK=1 — feed SysTick from HCLK directly
+            | (1 << 3);  // STRE    — auto-reload on match
 
-  // Without this, STK_SR.CNTIF latches but the IRQ never reaches the
-  // CPU. PFIC_IENR1 bit 12 = enable SysTick (CH32V003 RM §6.5.2.11).
+  // PFIC gate: without this, CNTIF latches but the CPU never sees the
+  // IRQ. RM §6.5.2.11 — writing 1 to bit 12 of IENR1 enables vector 12.
   PFIC_IENR1 = (1 << 12);
 
-  while (1) {
-    // main does nothing — ISR drives the LED.
-  }
-}
+  // RISC-V global interrupt enable (mstatus.MIE). Without this, the
+  // core ignores ALL interrupts no matter the PFIC state. The simulator
+  // skips inline asm; on hardware the compiler emits CSR-write
+  // instructions for the bit.
+  __asm__ volatile ("csrsi mstatus, 0x8");
 
-// Vector #12. The handler MUST clear CNTIF or it re-fires forever.
-void SysTick_Handler() {
-  STK_SR = 0;                          // clear CNTIF (write-0-to-clear)
-  GPIOC_OUTDR ^= (1 << 1);             // toggle PC1
+  while (1) {
+    // main does nothing — the ISR drives the LED.
+  }
 }
 `
   },
@@ -220,7 +235,12 @@ void SysTick_Handler() {
     title:       {ar: 'مقاطعة برمجية (SWIE)', en: 'Software-triggered interrupt (SWIE)'},
     description: {ar: 'إثبات أن SWIE في STK_CTLR ترفع المقاطعة البرمجية SW (vector 14) — لا تحتاج عتاد خارجي.', en: 'Show that setting SWIE in STK_CTLR raises the SW software interrupt (vector 14) — no external hardware needed.'},
     code: `${COMMON_DEFINES}
-int main() {
+__attribute__((interrupt)) void SW_Handler(void) {
+  GPIOC_BSHR = (1 << 1);               // PC1 HIGH from the ISR
+  STK_CTLR &= ~(1u << 31);             // ack: clear SWIE
+}
+
+int main(void) {
   RCC_APB2PCENR |= (1 << 4);
   GPIOC_CFGLR &= ~(0xF << (4*1));
   GPIOC_CFGLR |=  (0x3 << (4*1));      // PC1 output
@@ -229,15 +249,14 @@ int main() {
   // visible effect — the interrupt just sits there pending.
   PFIC_IENR1 = (1 << 14);
 
+  // RISC-V global interrupt enable. Required on real hardware; no-op
+  // in the simulator (which doesn't model mstatus).
+  __asm__ volatile ("csrsi mstatus, 0x8");
+
   // Setting bit 31 of STK_CTLR (SWIE) raises the SW interrupt.
   // The handler must clear SWIE before returning, otherwise the
   // interrupt re-fires.
   STK_CTLR = (1u << 31);
-}
-
-void SW_Handler() {
-  GPIOC_BSHR = (1 << 1);               // PC1 HIGH from the ISR
-  STK_CTLR &= ~(1u << 31);             // ack: clear SWIE
 }
 `
   },
