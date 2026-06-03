@@ -46,6 +46,11 @@ const COMMON_DEFINES = `// ─── Register definitions ───────�
 #define STK_SR          (*(volatile unsigned int*)(STK_BASE + 0x04))
 #define STK_CNTL        (*(volatile unsigned int*)(STK_BASE + 0x08))
 #define STK_CMPLR       (*(volatile unsigned int*)(STK_BASE + 0x10))
+
+#define PFIC_BASE       0xE000E000
+#define PFIC_ISR1       (*(volatile unsigned int*)(PFIC_BASE + 0x000))
+#define PFIC_IENR1      (*(volatile unsigned int*)(PFIC_BASE + 0x100))
+#define PFIC_IRER1      (*(volatile unsigned int*)(PFIC_BASE + 0x180))
 `
 
 export const PRESETS: Preset[] = [
@@ -174,7 +179,7 @@ int main() {
     id: 'systick-blink',
     lessonSlug: 'l06-systick',
     title:       {ar: 'وميض عبر SysTick', en: 'Blink with SysTick'},
-    description: {ar: 'إعداد SysTick بقيمة مقارنة صغيرة + ISR يقلب PC1. لاحظ STK_CNTL يعدّ في كل خطوة، CNTIF يضيء عند المطابقة، ثم يعمل الـ handler.', en: 'Set SysTick with a small CMP + ISR that toggles PC1. Watch STK_CNTL count each step, CNTIF latch on match, then the handler run.'},
+    description: {ar: 'إعداد SysTick بقيمة مقارنة صغيرة + تفعيل PFIC + ISR يقلب PC1. لاحظ STK_CNTL يعدّ، CNTIF يضيء عند المطابقة، PFIC_ISR1 bit 12 مرفوع، ثم يعمل الـ handler.', en: 'Set up SysTick with a small CMP, enable it in PFIC, and let the ISR toggle PC1. Watch STK_CNTL count, CNTIF latch, PFIC_ISR1 bit 12 raised, then the handler runs.'},
     code: `${COMMON_DEFINES}
 // SysTick CMP=5 in the sim means: the handler fires every 6 steps
 // (CNT goes 0→1→2→3→4→5 [fire] → 0 …). On a real chip you'd use
@@ -188,6 +193,10 @@ int main() {
   STK_CMPLR = 5;                       // small CMP so we see fires quickly
   STK_CNTL  = 0;
   STK_CTLR  = (1 << 0) | (1 << 1) | (1 << 3);  // STE | STIE | STRE
+
+  // Without this, STK_SR.CNTIF latches but the IRQ never reaches the
+  // CPU. PFIC_IENR1 bit 12 = enable SysTick (CH32V003 RM §6.5.2.11).
+  PFIC_IENR1 = (1 << 12);
 
   while (1) {
     // main does nothing — ISR drives the LED.
@@ -212,6 +221,10 @@ int main() {
   RCC_APB2PCENR |= (1 << 4);
   GPIOC_CFGLR &= ~(0xF << (4*1));
   GPIOC_CFGLR |=  (0x3 << (4*1));      // PC1 output
+
+  // Enable SW (vector #14) in PFIC. Without this, raising SWIE has no
+  // visible effect — the interrupt just sits there pending.
+  PFIC_IENR1 = (1 << 14);
 
   // Setting bit 31 of STK_CTLR (SWIE) raises the SW interrupt.
   // The handler must clear SWIE before returning, otherwise the

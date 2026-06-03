@@ -14,6 +14,7 @@ export const GPIOA_BASE   = 0x40010800
 export const GPIOC_BASE   = 0x40011000
 export const GPIOD_BASE   = 0x40011400
 export const SYSTICK_BASE = 0xE000F000
+export const PFIC_BASE    = 0xE000E000
 
 export interface RegisterEntry extends RegisterDef {
   /** Bits that are read-only (writes ignored). Used for ready/SWS-type bits. */
@@ -35,9 +36,11 @@ export const REGISTERS: RegisterEntry[] = [
   {
     name: 'RCC_CFGR0', peripheral: 'RCC',
     address: RCC_BASE + 0x04,
-    reset: 0x00000000,
+    // HPRE field [7:4] resets to 0010b per RM §3.4.4 → AHB prescaler = /3.
+    // Combined with the default HSI 24 MHz, HCLK = 8 MHz at power-on.
+    reset: 0x00000020,
     readOnlyMask: 0b1100,               // SWS[3:2] read-only (mirrors SW)
-    fields: {0: 'SW0', 1: 'SW1', 2: 'SWS0', 3: 'SWS1', 16: 'PLLSRC', 24: 'MCO0', 25: 'MCO1', 26: 'MCO2'}
+    fields: {0: 'SW0', 1: 'SW1', 2: 'SWS0', 3: 'SWS1', 4: 'HPRE0', 5: 'HPRE1', 6: 'HPRE2', 7: 'HPRE3', 16: 'PLLSRC', 24: 'MCO0', 25: 'MCO1', 26: 'MCO2'}
   },
   {
     name: 'RCC_APB2PCENR', peripheral: 'RCC',
@@ -98,6 +101,36 @@ REGISTERS.push(
   ...portRegs('GPIOA', GPIOA_BASE),
   ...portRegs('GPIOC', GPIOC_BASE),
   ...portRegs('GPIOD', GPIOD_BASE)
+)
+
+// ── PFIC (RM §6.4) — gates which interrupts can actually reach the core ─
+REGISTERS.push(
+  {
+    name: 'PFIC_ISR1', peripheral: 'PFIC',
+    address: PFIC_BASE + 0x000,
+    // RM §6.5.2.1 note 1: PFIC_ISR1 resets to 0xC — NMI #2 and HardFault #3
+    // are always enabled. INTEN status for vectors 12 (SysTick), 14 (SW),
+    // 20 (EXTI7_0) lives here and is updated by the IENR1/IRER1 hooks.
+    reset: 0x0000000C,
+    readOnlyMask: 0xFFFFFFFF,
+    fields: {2: 'NMI', 3: 'HF', 12: 'SysTick', 14: 'SW', 20: 'EXTI7_0'}
+  },
+  {
+    name: 'PFIC_IENR1', peripheral: 'PFIC',
+    address: PFIC_BASE + 0x100,
+    // WO: writing 1 to bit N enables interrupt N. The hook applies the
+    // enable and clears IENR1 back to 0 (reads return 0).
+    reset: 0x00000000,
+    fields: {12: 'SysTick', 14: 'SW', 20: 'EXTI7_0'}
+  },
+  {
+    name: 'PFIC_IRER1', peripheral: 'PFIC',
+    address: PFIC_BASE + 0x180,
+    // WO: writing 1 to bit N disables interrupt N. Same write-then-clear
+    // pattern as IENR1.
+    reset: 0x00000000,
+    fields: {12: 'SysTick', 14: 'SW', 20: 'EXTI7_0'}
+  }
 )
 
 // ── SysTick (PFIC system timer, RM §6.5) ─────────────────────────────

@@ -31,6 +31,11 @@ export const HANDLER_NAMES: Record<string, Vector> = {
   SW_Handler:         'SW'
 }
 
+/** Bit position of each vector in PFIC's enable bitmap (= the interrupt number). */
+const VECTOR_BIT: Record<Vector, number> = {SysTick: 12, SW: 14, EXTI7_0: 20}
+/** NMI + HardFault are always-on in PFIC, reflected in the controller default. */
+const ALWAYS_ENABLED_MASK = (1 << 2) | (1 << 3)
+
 export class InterruptController {
   /** Vectors currently pending (set by peripherals). */
   private pending = new Set<Vector>()
@@ -38,11 +43,34 @@ export class InterruptController {
   private servicing: Vector | null = null
   /** Per-vector "we already warned about it never being cleared" flag. */
   private warned = new Set<Vector>()
+  /** Live mirror of PFIC_ISR1 — which vectors PFIC is letting through. */
+  private enableMask = ALWAYS_ENABLED_MASK
+  /** Per-vector "STIE on but PFIC disabled" warning de-dup. */
+  private pficWarned = new Set<Vector>()
 
   reset(): void {
     this.pending.clear()
     this.servicing = null
     this.warned.clear()
+    this.enableMask = ALWAYS_ENABLED_MASK
+    this.pficWarned.clear()
+  }
+
+  /** Called by the PFIC peripheral whenever IENR1/IRER1 changes the bitmap. */
+  setEnableMask(mask: number): void {
+    this.enableMask = mask >>> 0
+  }
+
+  /** True if PFIC is currently letting vector V reach the core. */
+  isEnabled(v: Vector): boolean {
+    return ((this.enableMask >>> VECTOR_BIT[v]) & 1) === 1
+  }
+
+  /** Useful for peripheral self-warnings (STIE on but PFIC bit cleared). */
+  warnPficGate(v: Vector, onWarn: (v: Vector) => void): void {
+    if (this.pficWarned.has(v)) return
+    this.pficWarned.add(v)
+    onWarn(v)
   }
 
   /** Peripheral signals an interrupt is pending. */
@@ -67,9 +95,11 @@ export class InterruptController {
     if (this.servicing) return null
     // CH32V003 uses programmable priorities; for the sim we just take
     // the first pending vector in vector-table order so the behaviour
-    // is deterministic.
+    // is deterministic. PFIC gating: a pending vector that isn't enabled
+    // in PFIC_ISR1 stays pending but the CPU never sees it — just like
+    // on real hardware.
     for (const v of ['SysTick', 'EXTI7_0', 'SW'] as Vector[]) {
-      if (this.pending.has(v)) {
+      if (this.pending.has(v) && this.isEnabled(v)) {
         this.servicing = v
         return v
       }

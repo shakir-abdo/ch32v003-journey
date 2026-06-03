@@ -10,6 +10,7 @@ import {REGISTERS} from '~/sim/registers'
 import {rccHook} from '~/sim/peripherals/rcc'
 import {gpioHook, gpioPinModel} from '~/sim/peripherals/gpio'
 import {makeSysTickHook, tickSysTick, resetSysTickWarnings} from '~/sim/peripherals/systick'
+import {makePficHook} from '~/sim/peripherals/pfic'
 import {parse, ParseError} from '~/sim/parser'
 import {Interpreter, RuntimeError} from '~/sim/interpreter'
 import {InterruptController} from '~/sim/interrupts'
@@ -35,6 +36,7 @@ function getBus(): Bus {
   const intc = new InterruptController()
   b.registerHook(rccHook)
   b.registerHook(gpioHook)
+  b.registerHook(makePficHook(intc))
   b.registerHook(makeSysTickHook(intc))
   b.setPinModel(gpioPinModel)
   b.setWarnSink((msg) => _warnSinkAttached?.(msg))

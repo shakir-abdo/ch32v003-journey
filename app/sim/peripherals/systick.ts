@@ -110,7 +110,17 @@ export function tickSysTick(bus: Bus, intc: InterruptController): {writes?: impo
     if (nextCnt === cmp) {
       // 0→CMP transition. Latch CNTIF and raise if interrupts enabled.
       bus.writeSilent(STK_SR, bus.read(STK_SR) | CNTIF)
-      if (ctlr & STIE) intc.raise('SysTick')
+      if (ctlr & STIE) {
+        intc.raise('SysTick')
+        // PFIC gate check: STIE+CNTIF on, but PFIC_IENR1.bit12 is 0.
+        // Real hardware would silently swallow the IRQ; warn once so
+        // the learner knows what's missing.
+        if (!intc.isEnabled('SysTick')) {
+          intc.warnPficGate('SysTick', () => {
+            bus.warn('SysTick CNTIF latched + STIE on, but PFIC bit 12 is off — the IRQ never reaches the core. Add PFIC_IENR1 |= (1 << 12); to enable it (CH32V003 RM §6.5.2.11).')
+          })
+        }
+      }
     }
   }
   bus.writeSilent(STK_CNTL, nextCnt)
