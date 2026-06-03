@@ -949,8 +949,9 @@
       "howBody": "Every lesson is verified against the CH32V003 Reference Manual v1.9 (pages cited per reference). Code samples are tested on real hardware (J4M6 package). Everything is written at the register level — no HAL — but with helpful macros from ch32v003fun where useful.",
       "licenseHeading": "License & sources",
       "licenseList": [
-        "Content is open and free — use, share, and remix.",
-        "Source on github.com/shakir-abdo.",
+        "Source code (Nuxt app + simulator): MIT — fully free, reuse it in your own projects.",
+        "Lesson content (Markdown, instructional images): CC BY-NC-SA 4.0 — attribution required, non-commercial use only, derivatives must share the same license.",
+        "Source on github.com/shakir-abdo/ch32v003-journey.",
         "Contributions welcome (fixes, new lessons, translations)."
       ],
       "authorHeading": "Curriculum author",
@@ -1015,7 +1016,7 @@
       },
       "paypal": {
         "title": "PayPal",
-        "desc": "A small tip helps keep this work open and free.",
+        "desc": "A small tip helps keep this work freely available to learners.",
         "cta": "Donate via PayPal"
       }
     },
