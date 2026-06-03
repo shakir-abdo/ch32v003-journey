@@ -165,6 +165,7 @@ class Parser {
   parseProgram(): Program {
     const start = this.peek().line
     let main: FuncDef | null = null
+    const functions = new Map<string, FuncDef>()
     const ignored: Loc[] = []
 
     while (!this.eof()) {
@@ -179,11 +180,9 @@ class Parser {
         ignored.push({startLine: skipStart, endLine: this.peek().line})
         continue
       }
-      // top-level statement OR function definition
-      // crude detector: looks for IDENT IDENT '(' which means
-      // `<rettype> <name> (` — function definition.
       if (this.looksLikeFunctionDef()) {
         const fn = this.parseFunctionDef()
+        functions.set(fn.name, fn)
         if (fn.name === 'main') {
           if (main) {
             // We already had a synthetic main collecting top-level
@@ -191,20 +190,24 @@ class Parser {
             // user's code isn't silently lost.
             this.warnings.push(`Line ${fn.startLine}: top-level statements before main() were prepended to its body.`)
             main = {...fn, body: [...main.body, ...fn.body]}
+            functions.set('main', main)
           } else {
             main = fn
           }
-        } else {
-          this.warnings.push(`Function ${fn.name} declared but only main() runs in v1.`)
         }
+        // Non-main functions (ISR handlers, helpers) are registered for
+        // dispatch but not warned about — the interpreter will look them
+        // up by canonical handler name.
         continue
       }
-      // top-level statement (rare, but allowed for didactic snippets without main)
+      // top-level statement — collect into a synthetic main.
       const stmt = this.parseStatement()
-      // Wrap it into a synthetic main() if no main has appeared by EOF.
-      if (!main) main = {
-        type: 'FuncDef', name: 'main', body: [],
-        startLine: stmt.startLine, endLine: stmt.endLine
+      if (!main) {
+        main = {
+          type: 'FuncDef', name: 'main', body: [],
+          startLine: stmt.startLine, endLine: stmt.endLine
+        }
+        functions.set('main', main)
       }
       main.body.push(stmt)
       main.endLine = stmt.endLine
@@ -214,6 +217,7 @@ class Parser {
       type: 'Program',
       defines: [...this.macros.values()],
       main,
+      functions,
       ignored,
       startLine: start,
       endLine: this.peek().line

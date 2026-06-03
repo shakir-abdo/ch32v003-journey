@@ -13,6 +13,7 @@ export const RCC_BASE     = 0x40021000
 export const GPIOA_BASE   = 0x40010800
 export const GPIOC_BASE   = 0x40011000
 export const GPIOD_BASE   = 0x40011400
+export const SYSTICK_BASE = 0xE000F000
 
 export interface RegisterEntry extends RegisterDef {
   /** Bits that are read-only (writes ignored). Used for ready/SWS-type bits. */
@@ -97,6 +98,36 @@ REGISTERS.push(
   ...portRegs('GPIOA', GPIOA_BASE),
   ...portRegs('GPIOC', GPIOC_BASE),
   ...portRegs('GPIOD', GPIOD_BASE)
+)
+
+// ── SysTick (PFIC system timer, RM §6.5) ─────────────────────────────
+REGISTERS.push(
+  {
+    name: 'STK_CTLR', peripheral: 'SysTick',
+    address: SYSTICK_BASE + 0x00,
+    reset: 0x00000000,
+    fields: {0: 'STE', 1: 'STIE', 2: 'STCLK', 3: 'STRE', 31: 'SWIE'}
+  },
+  {
+    name: 'STK_SR', peripheral: 'SysTick',
+    address: SYSTICK_BASE + 0x04,
+    reset: 0x00000000,
+    // CNTIF is RW0: write 0 clears, write 1 has no effect. We model the
+    // "no effect on writing 1" semantics inside the hook (not via mask).
+    fields: {0: 'CNTIF'}
+  },
+  {
+    name: 'STK_CNTL', peripheral: 'SysTick',
+    address: SYSTICK_BASE + 0x08,
+    reset: 0x00000000,
+    fields: {}
+  },
+  {
+    name: 'STK_CMPLR', peripheral: 'SysTick',
+    address: SYSTICK_BASE + 0x10,
+    reset: 0x00000000,
+    fields: {}
+  }
 )
 
 /** Lookup index, address → entry. */

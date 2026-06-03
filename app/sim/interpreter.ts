@@ -36,11 +36,12 @@
 import type {
   AssignExpr, BinaryExpr, Block, CastExpr, CallExpr,
   Define, DerefExpr, Expr, ExprStmt,
-  ForStmt, GroupExpr, Ident, IfStmt, NumberLit,
+  ForStmt, FuncDef, GroupExpr, Ident, IfStmt, NumberLit,
   Program, Stmt, TernaryExpr, UnaryExpr, VarDecl, WhileStmt
 } from './ast'
 import type {Bus} from './bus'
 import type {PinChange, RegisterWrite, StepResult} from './types'
+import {HANDLER_NAMES, InterruptController, type Vector} from './interrupts'
 
 export class RuntimeError extends Error {
   constructor(public node: {startLine: number; endLine: number}, msg: string) {
@@ -65,20 +66,33 @@ interface ExecCursor {
     | {kind: 'for';   node: ForStmt;   phase: 'header' | 'body' | 'update'; pendingBody?: boolean}
     | {kind: 'if';    node: IfStmt;    branch: 'consequent' | 'alternate'}
     | {kind: 'block'; node: Block}
+  /**
+   * Non-null on cursors that represent an interrupt service routine.
+   * When such a cursor empties, we call intc.finish(this vector) to
+   * close out the interrupt and unblock the main flow.
+   */
+  isr?: Vector
 }
+
+/** Optional per-step side-channel work the interpreter knows nothing about — e.g. ticking SysTick. */
+export type PostStepHook = (bus: Bus, intc: InterruptController) => void
 
 export class Interpreter {
   private cursors: ExecCursor[] = []
   private callStack: Frame[] = []
   private halted = false
   private steps = 0
+  /** Per-vector "we already warned this vector has no handler" flags. */
+  private missingHandlerWarned = new Set<Vector>()
 
   constructor(
     private program: Program,
     private bus: Bus,
     private macros: Map<string, Define>,
+    private intc: InterruptController,
     private hooks: {
       onLog?: (level: 'info'|'warn'|'error', msg: string) => void
+      postStep?: PostStepHook[]
     } = {}
   ) {
     this.reset()
@@ -89,6 +103,8 @@ export class Interpreter {
     this.callStack = [{vars: new Map()}]
     this.halted = false
     this.steps = 0
+    this.missingHandlerWarned.clear()
+    this.intc.reset()
     if (this.program.main) {
       this.cursors.push({list: this.program.main.body, i: 0})
     } else {
@@ -106,6 +122,13 @@ export class Interpreter {
   step(): StepResult | null {
     if (this.halted) return null
 
+    // Before fetching a statement, give pending interrupts a chance to
+    // jump in (lazily — only on a step boundary, so we don't preempt
+    // mid-expression). If a vector is pending and no ISR is currently
+    // running, push the handler onto the cursor stack so the next
+    // statement we run belongs to the ISR.
+    this.maybeEnterIsr()
+
     const stmt = this.nextStmt()
     if (!stmt) {
       this.halted = true
@@ -113,9 +136,6 @@ export class Interpreter {
     }
     this.steps++
 
-    // Wrap the bus calls so we can collect writes+pin diffs across the
-    // single user-level statement. The bus already returns per-write
-    // diffs; we merge.
     const writes: RegisterWrite[] = []
     const pinChanges: PinChange[] = []
     let logMsg: string | undefined
@@ -128,12 +148,48 @@ export class Interpreter {
       throw new RuntimeError(stmt, (e as Error).message)
     }
 
+    // After the statement, advance simulated time. Peripheral models that
+    // care (SysTick) hook in here.
+    for (const h of this.hooks.postStep ?? []) {
+      h(this.bus, this.intc)
+    }
+
     return {
       lineRange: [stmt.startLine, stmt.endLine],
       writes,
       pinChanges,
       log: logMsg
     }
+  }
+
+  /**
+   * If an interrupt is pending and we're not already inside one, push
+   * the corresponding handler's body onto the cursor stack as an ISR
+   * frame. The interpreter will then execute that body before returning
+   * to main.
+   */
+  private maybeEnterIsr(): void {
+    if (this.intc.isServicing()) return
+    const v = this.intc.pickNext()
+    if (!v) return
+
+    const handlerName = Object.keys(HANDLER_NAMES).find((n) => HANDLER_NAMES[n] === v)!
+    const handler = this.program.functions.get(handlerName)
+    if (!handler) {
+      // Real hardware would jump to the (default) handler stub and
+      // typically lock. We halt with a clear message instead.
+      if (!this.missingHandlerWarned.has(v)) {
+        this.missingHandlerWarned.add(v)
+        this.hooks.onLog?.('error', `interrupt ${v} fired but no ${handlerName}() defined — sim halts (real hw would jump to a default handler stub).`)
+      }
+      this.halted = true
+      // Cancel the "servicing" status the controller set inside pickNext
+      // so a future reset starts clean.
+      this.intc.finish()
+      return
+    }
+    this.cursors.push({list: handler.body, i: 0, isr: v})
+    this.hooks.onLog?.('info', `IRQ #${v}: entering ${handlerName}()`)
   }
 
   /**
@@ -173,20 +229,21 @@ export class Interpreter {
       if (top.reentry) {
         const re = top.reentry
         if (re.kind === 'while') {
-          // Decide whether to step into the body or finish.
           const cond = this.evalExpr(re.node.test)
-          if (cond) {
-            // Push a fresh cursor over the body. If the body is a Block,
-            // descend into its statements; otherwise wrap in a one-element list.
-            const body = re.node.body
-            top.reentry = re // keep
-            this.pushBody(body)
-            return this.popUntilStmt()
-          } else {
+          if (!cond) {
             top.reentry = undefined
-            top.i++ // move past the while node
+            top.i++
             continue
           }
+          const body = re.node.body
+          // `while(1){}` — body is empty. Yield a synthetic no-op so
+          // step() returns and post-step hooks (SysTick tick, interrupt
+          // dispatch) still fire each iteration.
+          if (body.type === 'Block' && body.body.length === 0) {
+            return this.idleTick(re.node.startLine, re.node.endLine)
+          }
+          this.pushBody(body)
+          continue
         }
         if (re.kind === 'for') {
           if (re.phase === 'header') {
@@ -196,9 +253,13 @@ export class Interpreter {
               continue
             }
             re.phase = 'body'
-            const body = re.node.body
-            this.pushBody(body)
-            return this.popUntilStmt()
+            const fbody = re.node.body
+            if (fbody.type === 'Block' && fbody.body.length === 0) {
+              re.phase = 'update' // empty body → straight to update
+              return this.idleTick(re.node.startLine, re.node.endLine)
+            }
+            this.pushBody(fbody)
+            continue
           }
           if (re.phase === 'update') {
             if (re.node.update) this.evalExpr(re.node.update)
@@ -235,7 +296,7 @@ export class Interpreter {
           const next = cond ? stmt.consequent : stmt.alternate
           if (next) {
             this.pushBody(next)
-            return this.popUntilStmt()
+            continue
           }
           top.reentry = undefined
           top.i++
@@ -259,7 +320,17 @@ export class Interpreter {
         return stmt
       } else {
         // Cursor exhausted. Pop and let parent advance (or re-enter loop).
-        this.cursors.pop()
+        const popped = this.cursors.pop()
+        // If the popped cursor was an ISR frame, tell the controller the
+        // handler returned. If the user didn't clear the pending bit,
+        // intc.finish() warns and the next pickNext() will fire again.
+        if (popped?.isr) {
+          this.hooks.onLog?.('info', `IRQ #${popped.isr}: returning from handler`)
+          this.intc.finish((v) => {
+            this.hooks.onLog?.('warn',
+              `${v} handler returned without clearing the pending flag — interrupt will re-fire forever on a real chip. Add the clear-flag write before return.`)
+          })
+        }
         const parent = this.cursors[this.cursors.length - 1]
         if (parent?.reentry?.kind === 'for') {
           parent.reentry.phase = 'update'
@@ -274,6 +345,20 @@ export class Interpreter {
     else this.cursors.push({list: [stmt], i: 0})
   }
   private popUntilStmt(): Stmt | null { return this.nextStmt() }
+
+  /**
+   * Synthetic "do nothing" statement that nevertheless counts as one
+   * interpreter step. We yield this from inside an empty `while/for`
+   * body so the post-step hooks (SysTick tick, interrupt dispatch) get
+   * a chance to fire each iteration. Editor highlights the loop header.
+   */
+  private idleTick(startLine: number, endLine: number): Stmt {
+    return {
+      type: 'ExprStmt',
+      expr: {type: 'Number', value: 0, raw: '0', startLine, endLine},
+      startLine, endLine
+    }
+  }
 
   // ── statement execution (for simple stmts only) ────────────────────
   private executeStmt(stmt: Stmt, writes: RegisterWrite[], pinChanges: PinChange[]): {log?: string} | void {

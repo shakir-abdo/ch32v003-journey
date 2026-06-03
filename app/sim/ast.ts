@@ -17,8 +17,12 @@ export type Node = Program | TopLevel | Stmt | Expr
 export interface Program extends Loc {
   type: 'Program'
   defines: Define[]
-  /** main() body — for v1 we ignore any other functions. */
+  /** main() body — the interpreter starts here. */
   main: FuncDef | null
+  /** Every parsed function keyed by name. The interpreter uses this to
+   * dispatch ISRs (SysTick_Handler, EXTI7_0_IRQHandler, …) and may also
+   * service plain function calls in future versions. */
+  functions: Map<string, FuncDef>
   /** Anything outside main + #define (e.g. typedef, #include) — preserved for editor mapping. */
   ignored: Loc[]
 }

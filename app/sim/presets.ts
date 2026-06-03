@@ -40,6 +40,12 @@ const COMMON_DEFINES = `// ─── Register definitions ───────�
 #define GPIOD_OUTDR     (*(volatile unsigned int*)(GPIOD_BASE + 0x0C))
 #define GPIOD_BSHR      (*(volatile unsigned int*)(GPIOD_BASE + 0x10))
 #define GPIOD_BCR       (*(volatile unsigned int*)(GPIOD_BASE + 0x14))
+
+#define STK_BASE        0xE000F000
+#define STK_CTLR        (*(volatile unsigned int*)(STK_BASE + 0x00))
+#define STK_SR          (*(volatile unsigned int*)(STK_BASE + 0x04))
+#define STK_CNTL        (*(volatile unsigned int*)(STK_BASE + 0x08))
+#define STK_CMPLR       (*(volatile unsigned int*)(STK_BASE + 0x10))
 `
 
 export const PRESETS: Preset[] = [
@@ -160,6 +166,62 @@ int main() {
   while (((RCC_CFGR0 >> 2) & 0x3) != 0x2);
 
   // now system clock = PLL output
+}
+`
+  },
+
+  {
+    id: 'systick-blink',
+    lessonSlug: 'l06-systick',
+    title:       {ar: 'وميض عبر SysTick', en: 'Blink with SysTick'},
+    description: {ar: 'إعداد SysTick بقيمة مقارنة صغيرة + ISR يقلب PC1. لاحظ STK_CNTL يعدّ في كل خطوة، CNTIF يضيء عند المطابقة، ثم يعمل الـ handler.', en: 'Set SysTick with a small CMP + ISR that toggles PC1. Watch STK_CNTL count each step, CNTIF latch on match, then the handler run.'},
+    code: `${COMMON_DEFINES}
+// SysTick CMP=5 in the sim means: the handler fires every 6 steps
+// (CNT goes 0→1→2→3→4→5 [fire] → 0 …). On a real chip you'd use
+// 48000-1 for 1 ms — but here each statement is one tick.
+
+int main() {
+  RCC_APB2PCENR |= (1 << 4);           // GPIOC clock on
+  GPIOC_CFGLR &= ~(0xF << (4*1));
+  GPIOC_CFGLR |=  (0x3 << (4*1));      // PC1 = PP output 50 MHz
+
+  STK_CMPLR = 5;                       // small CMP so we see fires quickly
+  STK_CNTL  = 0;
+  STK_CTLR  = (1 << 0) | (1 << 1) | (1 << 3);  // STE | STIE | STRE
+
+  while (1) {
+    // main does nothing — ISR drives the LED.
+  }
+}
+
+// Vector #12. The handler MUST clear CNTIF or it re-fires forever.
+void SysTick_Handler() {
+  STK_SR = 0;                          // clear CNTIF (write-0-to-clear)
+  GPIOC_OUTDR ^= (1 << 1);             // toggle PC1
+}
+`
+  },
+
+  {
+    id: 'systick-swi',
+    lessonSlug: 'l06-systick',
+    title:       {ar: 'مقاطعة برمجية (SWIE)', en: 'Software-triggered interrupt (SWIE)'},
+    description: {ar: 'إثبات أن SWIE في STK_CTLR ترفع المقاطعة البرمجية SW (vector 14) — لا تحتاج عتاد خارجي.', en: 'Show that setting SWIE in STK_CTLR raises the SW software interrupt (vector 14) — no external hardware needed.'},
+    code: `${COMMON_DEFINES}
+int main() {
+  RCC_APB2PCENR |= (1 << 4);
+  GPIOC_CFGLR &= ~(0xF << (4*1));
+  GPIOC_CFGLR |=  (0x3 << (4*1));      // PC1 output
+
+  // Setting bit 31 of STK_CTLR (SWIE) raises the SW interrupt.
+  // The handler must clear SWIE before returning, otherwise the
+  // interrupt re-fires.
+  STK_CTLR = (1u << 31);
+}
+
+void SW_Handler() {
+  GPIOC_BSHR = (1 << 1);               // PC1 HIGH from the ISR
+  STK_CTLR &= ~(1u << 31);             // ack: clear SWIE
 }
 `
   },

@@ -9,8 +9,10 @@ import {Bus} from '~/sim/bus'
 import {REGISTERS} from '~/sim/registers'
 import {rccHook} from '~/sim/peripherals/rcc'
 import {gpioHook, gpioPinModel} from '~/sim/peripherals/gpio'
+import {makeSysTickHook, tickSysTick, resetSysTickWarnings} from '~/sim/peripherals/systick'
 import {parse, ParseError} from '~/sim/parser'
 import {Interpreter, RuntimeError} from '~/sim/interpreter'
+import {InterruptController} from '~/sim/interrupts'
 import type {PinDef, PinStatus} from '~/sim/types'
 
 export interface RegisterRow {
@@ -25,18 +27,24 @@ export interface RegisterRow {
 }
 
 let _bus: Bus | null = null
+let _intc: InterruptController | null = null
 let _warnSinkAttached: ((msg: string) => void) | null = null
 function getBus(): Bus {
   if (_bus) return _bus
   const b = new Bus()
+  const intc = new InterruptController()
   b.registerHook(rccHook)
   b.registerHook(gpioHook)
+  b.registerHook(makeSysTickHook(intc))
   b.setPinModel(gpioPinModel)
-  // Forward bus warnings (unmapped MMIO, impossible RCC states, …) to
-  // whichever composable instance is currently active.
   b.setWarnSink((msg) => _warnSinkAttached?.(msg))
   _bus = b
+  _intc = intc
   return b
+}
+function getIntc(): InterruptController {
+  if (!_intc) getBus()
+  return _intc!
 }
 
 // J4M6 pin order on the chip diagram (top-down, pins 1→8).
@@ -126,15 +134,19 @@ export function useSimulator() {
   function compile(source: string): boolean {
     try {
       const {program, macros, warnings} = parse(source)
-      interpreter = new Interpreter(program, bus, macros, {
-        onLog: (lvl, m) => log(lvl, m)
+      const intc = getIntc()
+      resetSysTickWarnings()
+      interpreter = new Interpreter(program, bus, macros, intc, {
+        onLog: (lvl, m) => log(lvl, m),
+        postStep: [tickSysTick]
       })
       for (const w of warnings) log('warn', w)
       interpreterReady.value = true
       halted.value = false
       paused.value = false  // fresh compile — no step has fired yet
       activeLineRange.value = null
-      log('info', `compiled ${macros.size} macros + main()${program.main ? '' : ' [no main]'}`)
+      const isrCount = [...program.functions.keys()].filter((n) => n !== 'main').length
+      log('info', `compiled ${macros.size} macros + main()${program.main ? '' : ' [no main]'}${isrCount ? ` + ${isrCount} handler${isrCount > 1 ? 's' : ''}` : ''}`)
       return true
     } catch (e) {
       interpreter = null
@@ -249,6 +261,8 @@ export function useSimulator() {
   function reset() {
     pause()
     bus.reset()
+    getIntc().reset()
+    resetSysTickWarnings()
     interpreter = null
     interpreterReady.value = false
     halted.value = false
