@@ -69,15 +69,18 @@ int main() {
   GPIOC_CFGLR &= ~(0xF << (4 * 1));
   GPIOC_CFGLR |=  (0x3 << (4 * 1));   // MODE=11, CNF=00
 
-  // 3) toggle PC1 forever, with a tiny busy-wait between transitions
-  //    In the simulator each loop iteration is one step, so a small
-  //    count like 5 is plenty to watch. On real hardware, scale it
-  //    up (e.g. 500000) to get a visible blink.
+  // 3) toggle PC1 forever, with a busy-wait between transitions.
+  //    The 'volatile' on i is REQUIRED: with -Os (the default), GCC
+  //    deletes an empty loop whose counter is non-volatile, and the
+  //    LED would toggle at MHz speed (invisible). On a CH32V003 booted
+  //    from HSI, HCLK is ~8 MHz, so 500000 iterations ≈ 0.3 s. The
+  //    simulator collapses the empty for-body into one step so it
+  //    doesn't slow down.
   while (1) {
-    GPIOC_BSHR = (1 << 1);                  // PC1 HIGH (atomic set)
-    for (int i = 0; i < 5; i = i + 1) { }   // busy-wait
-    GPIOC_BCR  = (1 << 1);                  // PC1 LOW  (atomic clear)
-    for (int i = 0; i < 5; i = i + 1) { }
+    GPIOC_BSHR = (1 << 1);                            // PC1 HIGH (atomic set)
+    for (volatile int i = 0; i < 500000; i = i + 1) { }   // busy-wait
+    GPIOC_BCR  = (1 << 1);                            // PC1 LOW  (atomic clear)
+    for (volatile int i = 0; i < 500000; i = i + 1) { }
   }
 }
 `
@@ -97,10 +100,10 @@ int main() {
   GPIOC_CFGLR |=  (0x3 << (4 * 4));      // PP output, 50 MHz
 
   while (1) {
-    GPIOC_BSHR = (1 << 4);                  // PC4 HIGH
-    for (int i = 0; i < 5; i = i + 1) { }
-    GPIOC_BCR  = (1 << 4);                  // PC4 LOW
-    for (int i = 0; i < 5; i = i + 1) { }
+    GPIOC_BSHR = (1 << 4);                            // PC4 HIGH
+    for (volatile int i = 0; i < 500000; i = i + 1) { }   // busy-wait (~0.3 s @ 8 MHz HCLK)
+    GPIOC_BCR  = (1 << 4);                            // PC4 LOW
+    for (volatile int i = 0; i < 500000; i = i + 1) { }
   }
 }
 `

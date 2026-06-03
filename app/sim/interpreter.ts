@@ -265,7 +265,25 @@ export class Interpreter {
             re.phase = 'body'
             const fbody = re.node.body
             if (fbody.type === 'Block' && fbody.body.length === 0) {
-              re.phase = 'update' // empty body → straight to update
+              // Empty-body for loop. With a finite test, run all
+              // remaining iterations synchronously and yield a single
+              // idleTick — otherwise hardware-realistic counts (e.g.
+              // 500000 for a visible busy-wait at 8 MHz HCLK) would
+              // require the user to step 500000 times. With no test
+              // (`for(;;){}`) treat it like `while(1){}` — idle once
+              // per iteration so post-step hooks keep firing.
+              if (re.node.test) {
+                const MAX_ITER = 100_000_000
+                let n = 0
+                while (n < MAX_ITER && this.evalExpr(re.node.test)) {
+                  if (re.node.update) this.evalExpr(re.node.update)
+                  n++
+                }
+                top.reentry = undefined
+                top.i++
+                return this.idleTick(re.node.startLine, re.node.endLine)
+              }
+              re.phase = 'update' // empty infinite body → idle each iteration
               return this.idleTick(re.node.startLine, re.node.endLine)
             }
             this.pushBody(fbody)
