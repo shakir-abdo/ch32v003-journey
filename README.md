@@ -1,7 +1,7 @@
 # CH32V003 Journey
 
-> Arabic-first bare-metal RISC-V curriculum for the WCH **CH32V003J4M6**.
-> Live at **[ch32v003.shakir.sd](https://ch32v003.shakir.sd)**.
+> Bilingual Arabic + English bare-metal RISC-V curriculum for the WCH **CH32V003J4M6**.
+> Live at **[ch32v003.shakir.sd](https://ch32v003.shakir.sd)** (Arabic) and **[ch32v003.shakir.sd/en](https://ch32v003.shakir.sd/en)** (English).
 
 A structured, 22-lesson journey from your first Blinky to building production-grade firmware on a 30-cent RISC-V chip — written at the register level, with **CH32V003 Reference Manual v1.9** cross-references on every page.
 
@@ -11,7 +11,7 @@ Plus an interactive **[/playground](https://ch32v003.shakir.sd/playground)** whe
 
 ## Why this exists
 
-Most bare-metal learning material is English-only and assumes an STM32/ARM background. The CH32V003 is dirt-cheap (sub-$0.50), RISC-V, and underrepresented in Arabic learning resources. This curriculum closes that gap.
+Most bare-metal learning material is English-only and assumes an STM32/ARM background. The CH32V003 is dirt-cheap (sub-$0.50), RISC-V, and underrepresented in learning resources — especially in Arabic. This curriculum was authored in Arabic first to close that gap, and has since been translated into English so the same register-level approach is accessible to a global audience.
 
 ## What's inside
 
@@ -89,7 +89,9 @@ app/
   layouts/         # default cyberpunk layout
   assets/main.css  # cyberpunk design tokens
 content/
-  lessons/         # 22 markdown lessons (L00..L21)
+  lessons/
+    ar/            # 22 markdown lessons (L00..L21), Arabic
+    en/            # 22 markdown lessons (L00..L21), English
 i18n/locales/      # en.json, ar.json
 public/
   hardware/        # WCH-LinkE + chip images

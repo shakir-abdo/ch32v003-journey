@@ -11,8 +11,13 @@ useSeoMeta({
     : '22 progressive lessons for bare-metal CH32V003 programming.'
 })
 
-const {data: lessons} = await useAsyncData('lessons-list', () =>
-  queryCollection('lessons').order('order', 'ASC').all()
+// Each locale has its own collection (content/lessons/{ar,en}/*.md).
+// The cache key includes the locale so switching languages refetches.
+const collection = computed(() => locale.value === 'en' ? 'lessons_en' : 'lessons_ar')
+const {data: lessons} = await useAsyncData(
+  () => `lessons-list-${locale.value}`,
+  () => queryCollection(collection.value as 'lessons_ar').order('order', 'ASC').all(),
+  {watch: [collection]}
 )
 
 const search = ref('')

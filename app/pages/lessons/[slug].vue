@@ -7,16 +7,22 @@ const isRtl = computed(() => locale.value === 'ar')
 const slug = computed(() => String(route.params.slug))
 const lessonPresets = computed(() => PRESETS_BY_LESSON.get(slug.value) ?? [])
 
-const {data: lesson} = await useAsyncData(`lesson-${slug.value}`, () =>
-  queryCollection('lessons').where('slug', '=', slug.value).first()
+const collection = computed(() => locale.value === 'en' ? 'lessons_en' : 'lessons_ar')
+
+const {data: lesson} = await useAsyncData(
+  () => `lesson-${locale.value}-${slug.value}`,
+  () => queryCollection(collection.value as 'lessons_ar').where('slug', '=', slug.value).first(),
+  {watch: [collection]}
 )
 
 if (!lesson.value) {
   throw createError({statusCode: 404, statusMessage: 'Lesson not found', fatal: true})
 }
 
-const {data: all} = await useAsyncData('lessons-nav', () =>
-  queryCollection('lessons').order('order', 'ASC').all()
+const {data: all} = await useAsyncData(
+  () => `lessons-nav-${locale.value}`,
+  () => queryCollection(collection.value as 'lessons_ar').order('order', 'ASC').all(),
+  {watch: [collection]}
 )
 
 const currentIndex = computed(() => all.value?.findIndex((l) => l.slug === slug.value) ?? -1)

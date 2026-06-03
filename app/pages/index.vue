@@ -11,8 +11,11 @@ useSeoMeta({
     : 'A structured curriculum to learn bare-metal CH32V003 programming at the register level.'
 })
 
-const {data: lessons} = await useAsyncData('lessons-home', () =>
-  queryCollection('lessons').order('order', 'ASC').all()
+const collection = computed(() => locale.value === 'en' ? 'lessons_en' : 'lessons_ar')
+const {data: lessons} = await useAsyncData(
+  () => `lessons-home-${locale.value}`,
+  () => queryCollection(collection.value as 'lessons_ar').order('order', 'ASC').all(),
+  {watch: [collection]}
 )
 
 const trackIds = ['foundation', 'io', 'comm', 'analog', 'pro', 'bonus', 'capstone'] as const

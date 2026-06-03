@@ -861,7 +861,7 @@
       "heroLine1": "BARE-METAL",
       "heroLine2Pre": "CH32V003",
       "heroLine2Post": "JOURNEY",
-      "intro": "A structured Arabic-first curriculum of {n} lessons that walks you from your first Blinky to building production-grade firmware for the CH32V003 — all at the register level, with Reference Manual cross-references at every step.",
+      "intro": "A structured bilingual (Arabic + English) curriculum of {n} lessons that walks you from your first Blinky to building production-grade firmware for the CH32V003 — all at the register level, with Reference Manual cross-references at every step.",
       "introBold": "22 lessons",
       "ctaStart": "START_LEARNING",
       "ctaCurriculum": "VIEW_CURRICULUM",
@@ -937,7 +937,7 @@
     "about": {
       "title": "ABOUT_THIS_JOURNEY",
       "whyHeading": "Why this curriculum?",
-      "whyBody": "Most bare-metal learning resources are English-only, and most assume an STM32/ARM background. This curriculum offers a deliberate Arabic-first path from zero to professional, focused on the dirt-cheap (sub-$0.50) RISC-V CH32V003J4M6.",
+      "whyBody": "Most bare-metal learning resources assume an STM32/ARM background, and few cover RISC-V — fewer still in Arabic. This curriculum was authored in Arabic to close that gap, then translated into English to make the same register-level path available to a global audience. Either language takes you from zero to professional on the dirt-cheap (sub-$0.50) RISC-V CH32V003J4M6.",
       "whoHeading": "Who is it for?",
       "whoList": [
         "Developers who know C basics and want to understand hardware bottom-up.",

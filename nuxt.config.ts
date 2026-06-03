@@ -53,22 +53,22 @@ export default defineNuxtConfig({
   },
 
   // https://i18n.nuxtjs.org
-  // - Two locales out of the box: English (LTR) + Arabic (RTL)
-  // - "no_prefix" keeps URLs the same; locale is persisted in a cookie
-  // - Lazy-loads locale JSON files from i18n/locales/
+  //  - Arabic is the default locale (no URL prefix): /lessons/<slug>
+  //  - English is served under /en/lessons/<slug>
+  //  - Lazy-loads locale JSON files from i18n/locales/
   i18n: {
-    strategy: 'no_prefix',
-    defaultLocale: 'en',
+    strategy: 'prefix_except_default',
+    defaultLocale: 'ar',
     detectBrowserLanguage: {
       useCookie: true,
       cookieKey: 'i18n_locale',
       redirectOn: 'root',
-      fallbackLocale: 'en'
+      fallbackLocale: 'ar'
     },
     lazy: true,
     locales: [
-      {code: 'en', language: 'en-US', name: 'English', file: 'en.json', dir: 'ltr'},
-      {code: 'ar', language: 'ar-SA', name: 'العربية', file: 'ar.json', dir: 'rtl'}
+      {code: 'ar', language: 'ar-SA', name: 'العربية', file: 'ar.json', dir: 'rtl'},
+      {code: 'en', language: 'en-US', name: 'English', file: 'en.json', dir: 'ltr'}
     ]
   },
 
