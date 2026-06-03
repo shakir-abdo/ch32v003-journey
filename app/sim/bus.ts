@@ -81,28 +81,40 @@ export class Bus {
 
   /** Internal write — applies the value but doesn't open a transaction. */
   writeSilent(address: number, value: number): void {
-    this.values.set(address, value >>> 0)
+    const newValue = value >>> 0
+    this.values.set(address, newValue)
     // If we're already inside a transaction, record this side-effect write.
     if (this.txWrites) {
       const reg = REGISTER_BY_ADDR.get(address)
       if (reg) {
         const oldEntry = this.txWrites.find((w) => w.address === address)
         if (oldEntry) {
-          // Already collected this register in this tx; just bump newValue.
-          oldEntry.newValue = value >>> 0
-          oldEntry.bitsFlipped = bitsThatFlipped(oldEntry.oldValue, oldEntry.newValue)
+          // Track the union of every bit touched during the transaction,
+          // not just the net delta. That way an atomic-bit-op write like
+          // GPIOC_BSHR=(1<<1) — where the hook clears BSHR back to 0 a
+          // tick later — still flashes bit 1 in the UI, even though the
+          // register's final value matches its pre-tx state.
+          const directFlips = bitsThatFlipped(oldEntry.oldValue, newValue)
+          const intermediateFlips = bitsThatFlipped(oldEntry.newValue, newValue)
+          const allFlipped = new Set([
+            ...oldEntry.bitsFlipped,
+            ...directFlips,
+            ...intermediateFlips
+          ])
+          oldEntry.newValue = newValue
+          oldEntry.bitsFlipped = [...allFlipped].sort((a, b) => a - b)
         } else {
           // First side-effect on this register; original value isn't yet
           // captured because writeSilent skipped the tx framing. Pull the
           // pre-tx value from the lastTxOldValues map we keep alongside.
           const captured = this.captureOldValues.get(address)
-          const oldVal = captured ?? (value >>> 0)
+          const oldVal = captured ?? newValue
           this.txWrites.push({
             register: reg.name,
             address,
             oldValue: oldVal,
-            newValue: value >>> 0,
-            bitsFlipped: bitsThatFlipped(oldVal, value)
+            newValue,
+            bitsFlipped: bitsThatFlipped(oldVal, newValue)
           })
         }
       }
