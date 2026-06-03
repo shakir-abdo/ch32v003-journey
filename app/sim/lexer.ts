@@ -10,7 +10,7 @@
  * the interpreter to highlight the active line in the editor.
  */
 
-export type TokenType = 'NUMBER' | 'IDENT' | 'OP' | 'PUNCT' | 'DIRECTIVE' | 'EOF'
+export type TokenType = 'NUMBER' | 'IDENT' | 'OP' | 'PUNCT' | 'DIRECTIVE' | 'STRING' | 'EOF'
 
 export interface Token {
   type: TokenType
@@ -85,6 +85,26 @@ export function lex(source: string): Token[] {
       advance(2)
       while (i < N && !startsWith('*/')) advance()
       if (i < N) advance(2)
+      continue
+    }
+
+    // string literal — content kept as-is (no escape decoding). The parser
+    // doesn't execute strings; this just lets code containing `printf(...)`
+    // or `__asm__ volatile("...")` lex without error.
+    if (c === '"') {
+      const start = here()
+      advance() // opening "
+      let raw = ''
+      while (i < N && source[i] !== '"' && source[i] !== '\n') {
+        if (source[i] === '\\' && i + 1 < N) {
+          raw += advance(2) // backslash + next char
+        } else {
+          raw += source[i]!
+          advance()
+        }
+      }
+      if (i < N && source[i] === '"') advance() // closing "
+      tokens.push({type: 'STRING', value: raw, line: start.line, col: start.col})
       continue
     }
 

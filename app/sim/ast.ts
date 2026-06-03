@@ -54,6 +54,7 @@ export type Stmt =
   | VarDecl
   | BreakStmt
   | ContinueStmt
+  | ReturnStmt
 
 export interface Block extends Loc { type: 'Block'; body: Stmt[] }
 
@@ -90,6 +91,8 @@ export interface VarDecl extends Loc {
 
 export interface BreakStmt    extends Loc { type: 'Break' }
 export interface ContinueStmt extends Loc { type: 'Continue' }
+/** `return expr;` or `return;`. v1 only runs main(), so it just halts. */
+export interface ReturnStmt   extends Loc { type: 'Return'; value?: Expr }
 
 // ── Expressions ──────────────────────────────────────────────────────
 export type Expr =
@@ -103,6 +106,7 @@ export type Expr =
   | CastExpr
   | DerefExpr
   | GroupExpr
+  | PostfixExpr
 
 export interface NumberLit extends Loc { type: 'Number'; value: number; raw: string }
 export interface Ident     extends Loc { type: 'Ident';  name: string }
@@ -133,3 +137,9 @@ export interface CallExpr  extends Loc { type: 'Call'; callee: string; args: Exp
 export interface CastExpr  extends Loc { type: 'Cast'; declType: string; expr: Expr }
 export interface DerefExpr extends Loc { type: 'Deref'; target: Expr }
 export interface GroupExpr extends Loc { type: 'Group'; expr: Expr }
+/** `x++` / `x--` (postfix). Returns the value BEFORE the modification. */
+export interface PostfixExpr extends Loc {
+  type: 'Postfix'
+  op: '++' | '--'
+  target: Ident | DerefExpr
+}

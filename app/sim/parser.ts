@@ -180,6 +180,14 @@ class Parser {
         ignored.push({startLine: skipStart, endLine: this.peek().line})
         continue
       }
+      // GCC attribute: `__attribute__((interrupt))` etc — eat the
+      // construct so the parser can move on to whatever follows
+      // (typically a function definition).
+      if (t.type === 'IDENT' && t.value === '__attribute__') {
+        this.advance()
+        this.skipAttributePayload(t.line)
+        continue
+      }
       if (this.looksLikeFunctionDef()) {
         const fn = this.parseFunctionDef()
         functions.set(fn.name, fn)
@@ -226,12 +234,27 @@ class Parser {
 
   private looksLikeFunctionDef(): boolean {
     // Possible prefixes: `int main()`, `void main()`, `static void foo()`,
-    // `int main(void)`. Scan past zero-or-more type keywords, then expect
-    // an IDENT (the function name), then `(`.
+    // `int main(void)`, `__attribute__((interrupt)) void f()`. Scan past
+    // zero-or-more type keywords AND zero-or-more __attribute__((...))
+    // payloads, then expect an IDENT (the function name), then `(`.
     let k = 0
     while (true) {
       const t = this.peek(k)
       if (t.type === 'IDENT' && C_TYPE_KEYWORDS.has(t.value)) { k++; continue }
+      if (t.type === 'IDENT' && t.value === '__attribute__') {
+        // skip the (( ... )) payload by tracking paren depth.
+        k++
+        if (this.peek(k).type !== 'PUNCT' || this.peek(k).value !== '(') return false
+        k++
+        let depth = 1
+        while (depth > 0 && this.peek(k).type !== 'EOF') {
+          const pt = this.peek(k)
+          if (pt.type === 'PUNCT' && pt.value === '(') depth++
+          else if (pt.type === 'PUNCT' && pt.value === ')') depth--
+          k++
+        }
+        continue
+      }
       break
     }
     const nameTok = this.peek(k)
@@ -241,12 +264,27 @@ class Parser {
 
   private parseFunctionDef(): FuncDef {
     const startTok = this.peek()
-    while (this.peek().type === 'IDENT' && C_TYPE_KEYWORDS.has(this.peek().value)) this.advance()
+    // Skip leading attributes + type keywords.
+    while (true) {
+      const t = this.peek()
+      if (t.type === 'IDENT' && C_TYPE_KEYWORDS.has(t.value)) { this.advance(); continue }
+      if (t.type === 'IDENT' && t.value === '__attribute__') {
+        this.advance()
+        this.skipAttributePayload(t.line)
+        continue
+      }
+      break
+    }
     const name = this.expect('IDENT', null, 'expected function name').value
     this.expect('PUNCT', '(', `expected '(' after ${name}`)
     // skip param list — v1 doesn't run user-defined functions other than main
     while (!(this.peek().type === 'PUNCT' && this.peek().value === ')') && !this.eof()) this.advance()
     this.expect('PUNCT', ')', `expected ')' after parameters`)
+    // Trailing __attribute__ (`void f() __attribute__((noinline))`)
+    while (this.peek().type === 'IDENT' && this.peek().value === '__attribute__') {
+      const at = this.advance()
+      this.skipAttributePayload(at.line)
+    }
     const body = this.parseBlock().body
     return {
       type: 'FuncDef', name, body,
@@ -272,6 +310,26 @@ class Parser {
         case 'for':      return this.parseFor()
         case 'break':    { this.advance(); this.expect('PUNCT', ';', "expected ';' after break"); return {type: 'Break',    startLine: t.line, endLine: t.line} }
         case 'continue': { this.advance(); this.expect('PUNCT', ';', "expected ';' after continue"); return {type: 'Continue', startLine: t.line, endLine: t.line} }
+        case 'return': {
+          this.advance()
+          let value: import('./ast').Expr | undefined
+          if (!(this.peek().type === 'PUNCT' && this.peek().value === ';')) {
+            value = this.parseExpression()
+          }
+          const end = this.expect('PUNCT', ';', "expected ';' after return")
+          return {type: 'Return', value, startLine: t.line, endLine: end.line}
+        }
+        case '__asm__':
+        case 'asm': {
+          // GCC inline asm — we can't emulate the instructions, but we
+          // need to skip the whole statement so the rest of main parses.
+          const startLine = t.line
+          while (!this.eof()) {
+            const cur = this.advance()
+            if (cur.type === 'PUNCT' && cur.value === ';') break
+          }
+          return {type: 'Block', body: [], startLine, endLine: this.peek().line}
+        }
         default:
           if (C_TYPE_KEYWORDS.has(t.value)) return this.parseVarDecl()
       }
@@ -464,7 +522,19 @@ class Parser {
 
   private parsePostfix(): Expr {
     let expr = this.parsePrimary()
-    // No postfix ops in v1 (no [], ->, ., ++/--).
+    while (this.peek().type === 'OP' && (this.peek().value === '++' || this.peek().value === '--')) {
+      const op = this.advance()
+      if (expr.type !== 'Ident' && expr.type !== 'Deref') {
+        throw new ParseError(op, `postfix ${op.value} requires a name or dereferenced address`)
+      }
+      expr = {
+        type: 'Postfix',
+        op: op.value as '++' | '--',
+        target: expr,
+        startLine: expr.startLine,
+        endLine: op.line
+      } as import('./ast').PostfixExpr
+    }
     return expr
   }
 
@@ -474,6 +544,14 @@ class Parser {
     if (t.type === 'NUMBER') {
       this.advance()
       return {type: 'Number', value: t.num ?? 0, raw: t.value, startLine: t.line, endLine: t.line} as NumberLit
+    }
+
+    if (t.type === 'STRING') {
+      // We don't evaluate string literals — just consume them as a
+      // numeric 0 so that calls like `printf("hello")` parse cleanly.
+      // The simulator already warns on unsupported function calls.
+      this.advance()
+      return {type: 'Number', value: 0, raw: `"${t.value}"`, startLine: t.line, endLine: t.line} as NumberLit
     }
 
     if (t.type === 'IDENT') {
@@ -527,6 +605,24 @@ class Parser {
     }
 
     throw new ParseError(t, `unexpected ${t.type} '${t.value}'`)
+  }
+
+  /**
+   * Consume the `((...))` after `__attribute__`. Tracks paren depth so
+   * nested parens (e.g. `__attribute__((aligned(4)))`) work.
+   */
+  private skipAttributePayload(line: number): void {
+    if (!(this.peek().type === 'PUNCT' && this.peek().value === '(')) {
+      this.warnings.push(`Line ${line}: __attribute__ without ((...)) — skipped`)
+      return
+    }
+    this.advance() // first (
+    let depth = 1
+    while (depth > 0 && !this.eof()) {
+      const cur = this.advance()
+      if (cur.type === 'PUNCT' && cur.value === '(') depth++
+      else if (cur.type === 'PUNCT' && cur.value === ')') depth--
+    }
   }
 
   /** Peek for cast pattern after consuming '('. */

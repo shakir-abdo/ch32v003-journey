@@ -388,6 +388,22 @@ export class Interpreter {
       case 'Continue':
         this.bubbleControl('continue')
         return
+      case 'Return':
+        if (stmt.value) this.evalExpr(stmt.value)
+        // From an ISR: pop just the ISR frame (intc.finish() runs in
+        // the cursor-exhausted branch). From main: empty all cursors
+        // so the program halts on the next step.
+        while (this.cursors.length > 0) {
+          const top = this.cursors[this.cursors.length - 1]!
+          if (top.isr) {
+            // Stop here — the next nextStmt() call will see this cursor
+            // exhausted and trigger intc.finish().
+            top.i = top.list.length
+            return
+          }
+          this.cursors.pop()
+        }
+        return
       default:
         throw new RuntimeError(stmt, `unsupported statement type ${(stmt as Stmt).type}`)
     }
@@ -498,7 +514,30 @@ export class Interpreter {
       }
       case 'Call':   return this.evalCall(e, writes, pinChanges, setLog)
       case 'Assign': return this.evalAssign(e, writes, pinChanges, setLog)
+      case 'Postfix': return this.evalPostfix(e, writes, pinChanges, setLog)
     }
+  }
+
+  /**
+   * `x++` / `x--` — read current value, write current ± 1, return
+   * the ORIGINAL value (C semantics). For `while(cycles--)`, the
+   * loop ends one iteration AFTER cycles reaches zero, not when it
+   * is decremented to zero.
+   */
+  private evalPostfix(e: import('./ast').PostfixExpr, writes: RegisterWrite[], pinChanges: PinChange[], setLog: (m: string) => void): number {
+    const target = this.resolveAssignTarget(e.target)
+    const cur = target.kind === 'local'
+      ? this.readLocal(target.name)
+      : this.bus.read(target.addr)
+    const next = (e.op === '++' ? cur + 1 : cur - 1) >>> 0
+    if (target.kind === 'local') {
+      this.scope().set(target.name, next)
+    } else {
+      const out = this.bus.write(target.addr, next)
+      mergeWrites(writes, out.writes)
+      pinChanges.push(...out.pinChanges)
+    }
+    return cur >>> 0
   }
 
   /**
