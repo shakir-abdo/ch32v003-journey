@@ -147,8 +147,9 @@ const projects = [
           <p class="text-sm text-[var(--cy-fg-muted)] leading-relaxed grow">
             {{ t(`app.resources.${p.key}.desc`) }}
           </p>
-          <div class="mt-4 font-mono text-[11px] uppercase tracking-wider text-[var(--cy-fg-muted)] group-hover:text-[var(--cy-primary)] transition-colors flex items-center gap-2" dir="ltr">
-            {{ t(`app.resources.${p.key}.cta`) }} →
+          <div class="mt-4 font-mono text-[11px] uppercase tracking-wider text-[var(--cy-fg-muted)] group-hover:text-[var(--cy-primary)] transition-colors flex items-center gap-2">
+            <span>{{ t(`app.resources.${p.key}.cta`) }}</span>
+            <UIcon :name="isRtl ? 'i-lucide-arrow-left' : 'i-lucide-arrow-right'" class="size-3" />
           </div>
         </a>
       </div>
@@ -180,8 +181,9 @@ const projects = [
               {{ t('app.resources.personalSite.title') }}
             </h3>
             <p class="text-sm text-[var(--cy-fg-muted)] mb-2">{{ t('app.resources.personalSite.desc') }}</p>
-            <span class="font-mono text-[11px] uppercase text-[var(--cy-primary)]" dir="ltr">
-              {{ t('app.resources.personalSite.cta') }} →
+            <span class="font-mono text-[11px] uppercase text-[var(--cy-primary)] inline-flex items-center gap-1.5">
+              <span>{{ t('app.resources.personalSite.cta') }}</span>
+              <UIcon :name="isRtl ? 'i-lucide-arrow-left' : 'i-lucide-arrow-right'" class="size-3" />
             </span>
           </div>
         </a>
@@ -200,8 +202,9 @@ const projects = [
               {{ t('app.resources.paypal.title') }}
             </h3>
             <p class="text-sm text-[var(--cy-fg-muted)] mb-2">{{ t('app.resources.paypal.desc') }}</p>
-            <span class="font-mono text-[11px] uppercase" style="color: #FF2E97" dir="ltr">
-              {{ t('app.resources.paypal.cta') }} →
+            <span class="font-mono text-[11px] uppercase inline-flex items-center gap-1.5" style="color: #FF2E97">
+              <span>{{ t('app.resources.paypal.cta') }}</span>
+              <UIcon :name="isRtl ? 'i-lucide-arrow-left' : 'i-lucide-arrow-right'" class="size-3" />
             </span>
           </div>
         </a>
