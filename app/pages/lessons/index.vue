@@ -109,7 +109,7 @@ const resumeColor = computed(() =>
       <NuxtLink
         v-if="resumeLesson && progress"
         :to="localePath(`/lessons/${resumeLesson.slug}`)"
-        class="cy-panel mb-8 p-5 grid gap-4 group hover:no-underline relative overflow-hidden"
+        class="cy-panel mb-8 p-3 sm:p-5 grid gap-3 sm:gap-4 group hover:no-underline relative overflow-hidden"
         :style="{borderColor: resumeColor + '55'}"
       >
         <!-- ambient glow tinted by the lesson's track color -->
@@ -118,21 +118,21 @@ const resumeColor = computed(() =>
           :style="{background: `radial-gradient(circle at 20% 50%, ${resumeColor}22 0%, transparent 70%)`}"
         />
 
-        <!-- Top row: chip at start of reading direction, age next, ✕ at end -->
-        <div class="relative flex items-center gap-2 flex-wrap">
+        <!-- Top row: chip + age + dismiss. flex-wrap keeps long Arabic chips from pushing the X off-screen on narrow viewports. -->
+        <div class="relative flex items-center gap-2 flex-wrap min-w-0">
           <span
-            class="font-mono text-[10px] uppercase tracking-wider px-2 py-1 rounded-[2px] border inline-flex items-center gap-1.5"
+            class="font-mono text-[9px] sm:text-[10px] uppercase tracking-wider px-1.5 sm:px-2 py-1 rounded-[2px] border inline-flex items-center gap-1.5 max-w-full"
             :style="{color: resumeColor, borderColor: resumeColor + '55', background: resumeColor + '0E'}"
           >
-            <span class="size-1.5 rounded-full animate-pulse" :style="{background: resumeColor}" />
-            {{ t('app.resume.headline') }}
+            <span class="size-1.5 rounded-full animate-pulse shrink-0" :style="{background: resumeColor}" />
+            <span class="truncate">{{ t('app.resume.headline') }}</span>
           </span>
-          <span class="font-mono text-[10px] uppercase tracking-wider text-[var(--cy-fg-muted)]" dir="ltr">
+          <span class="font-mono text-[9px] sm:text-[10px] uppercase tracking-wider text-[var(--cy-fg-muted)] truncate" dir="ltr">
             {{ resumeAge }}
           </span>
           <button
             type="button"
-            class="ms-auto size-6 grid place-items-center text-[var(--cy-fg-muted)] hover:text-[var(--cy-destructive)] transition-colors rounded-[2px] hover:bg-[var(--cy-destructive)]/10"
+            class="ms-auto shrink-0 size-6 grid place-items-center text-[var(--cy-fg-muted)] hover:text-[var(--cy-destructive)] transition-colors rounded-[2px] hover:bg-[var(--cy-destructive)]/10"
             :title="t('app.resume.dismiss')"
             :aria-label="t('app.resume.dismiss')"
             @click.stop.prevent="clearProgress()"
@@ -141,32 +141,30 @@ const resumeColor = computed(() =>
           </button>
         </div>
 
-        <!-- Main row: icon + title + CTA -->
-        <div class="relative flex items-center gap-4">
-          <!-- Icon — always sits on the start-side (right in RTL, left in LTR) -->
+        <!-- Main row: icon + title + CTA. Icon shrinks on mobile, CTA hidden below sm. -->
+        <div class="relative flex items-center gap-3 sm:gap-4 min-w-0">
           <div
-            class="shrink-0 size-14 grid place-items-center border rounded-[4px]"
+            class="shrink-0 size-11 sm:size-14 grid place-items-center border rounded-[4px]"
             :style="{
               borderColor: resumeColor + '55',
               background: resumeColor + '12'
             }"
           >
-            <UIcon :name="resumeLesson.icon || 'i-lucide-book-open'" class="size-7" :style="{color: resumeColor}" />
+            <UIcon :name="resumeLesson.icon || 'i-lucide-book-open'" class="size-5 sm:size-7" :style="{color: resumeColor}" />
           </div>
 
-          <!-- Title block -->
+          <!-- Title block — flex-1 + min-w-0 are BOTH required so the truncated title actually shrinks instead of forcing the row to overflow. -->
           <div class="flex-1 min-w-0">
-            <div class="flex items-baseline gap-2" :dir="isRtl ? 'rtl' : 'ltr'">
-              <span class="font-mono text-xs font-bold tabular-nums" :style="{color: resumeColor}" dir="ltr">
+            <div class="flex items-baseline gap-2 min-w-0" :dir="isRtl ? 'rtl' : 'ltr'">
+              <span class="shrink-0 font-mono text-[11px] sm:text-xs font-bold tabular-nums" :style="{color: resumeColor}" dir="ltr">
                 L{{ String(resumeLesson.order).padStart(2, '0') }}
               </span>
-              <span class="font-display text-base sm:text-lg font-semibold text-[var(--cy-fg)] group-hover:text-[var(--cy-primary)] transition-colors truncate">
+              <span class="flex-1 min-w-0 truncate font-display text-sm sm:text-lg font-semibold text-[var(--cy-fg)] group-hover:text-[var(--cy-primary)] transition-colors">
                 {{ (resumeLesson as any)[titleField] }}
               </span>
             </div>
-            <!-- Progress bar — sits under the title -->
-            <div class="mt-2 flex items-center gap-3" dir="ltr">
-              <div class="flex-1 h-1 bg-[var(--cy-muted)] rounded-[1px] overflow-hidden">
+            <div class="mt-2 flex items-center gap-2 sm:gap-3" dir="ltr">
+              <div class="flex-1 min-w-0 h-1 bg-[var(--cy-muted)] rounded-[1px] overflow-hidden">
                 <div
                   class="h-full transition-all"
                   :style="{
@@ -182,7 +180,6 @@ const resumeColor = computed(() =>
             </div>
           </div>
 
-          <!-- CTA -->
           <span
             class="hidden sm:inline-flex cy-btn shrink-0"
             :style="{color: resumeColor, borderColor: resumeColor + '66'}"
