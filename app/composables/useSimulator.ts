@@ -16,6 +16,7 @@ import type {PinDef, PinStatus} from '~/sim/types'
 export interface RegisterRow {
   name: string
   address: number
+  /** Value to render right now — may be the transient "intent" during the flash window. */
   value: number
   reset: number
   peripheral: string
@@ -24,12 +25,16 @@ export interface RegisterRow {
 }
 
 let _bus: Bus | null = null
+let _warnSinkAttached: ((msg: string) => void) | null = null
 function getBus(): Bus {
   if (_bus) return _bus
   const b = new Bus()
   b.registerHook(rccHook)
   b.registerHook(gpioHook)
   b.setPinModel(gpioPinModel)
+  // Forward bus warnings (unmapped MMIO, impossible RCC states, …) to
+  // whichever composable instance is currently active.
+  b.setWarnSink((msg) => _warnSinkAttached?.(msg))
   _bus = b
   return b
 }
@@ -60,22 +65,33 @@ export function useSimulator() {
   const paused     = ref(false)
   /** Per-step interval in ms. Read live by run() so the slider takes effect immediately. */
   const speedMs    = ref(800)
-  /** Name of the register most recently touched — drives the auto-scroll. */
+  /** Names of every register touched in the current flash window — drives the glow ring. */
+  const highlightedRegisters = ref<Set<string>>(new Set())
+  /** Single register the panel auto-scrolls to — first one in the diff. */
   const lastChangedRegister = ref<string | null>(null)
 
   let interpreter: Interpreter | null = null
   let runTimer: ReturnType<typeof setTimeout> | null = null
 
-  function flushSnapshot(flashedByAddress = new Map<number, number[]>()) {
-    registers.value = REGISTERS.map((r) => ({
-      name: r.name,
-      address: r.address,
-      value: bus.read(r.address),
-      reset: r.reset,
-      peripheral: r.peripheral,
-      fields: r.fields,
-      flashedBits: flashedByAddress.get(r.address) ?? []
-    }))
+  function flushSnapshot(
+    flashedByAddress = new Map<number, number[]>(),
+    transientByAddress = new Map<number, number>()
+  ) {
+    registers.value = REGISTERS.map((r) => {
+      // During the flash window we show the transient (intent) value so
+      // BSHR/BCR-style writes are visible before hardware reclaims them.
+      const transient = transientByAddress.get(r.address)
+      const value = transient !== undefined ? transient : bus.read(r.address)
+      return {
+        name: r.name,
+        address: r.address,
+        value,
+        reset: r.reset,
+        peripheral: r.peripheral,
+        fields: r.fields,
+        flashedBits: flashedByAddress.get(r.address) ?? []
+      }
+    })
 
     const pinStatus = bus.pinSnapshot()
     pins.value = J4M6_LAYOUT.map((p) => ({
@@ -89,6 +105,8 @@ export function useSimulator() {
   function log(level: 'info'|'warn'|'error', msg: string) {
     consoleEntries.value.push({level, msg})
   }
+  // Bus warnings (unmapped MMIO, impossible RCC states, …) → console.
+  _warnSinkAttached = (msg) => log('warn', msg)
 
   function manualWrite(address: number, value: number) {
     const reg = REGISTERS.find((r) => r.address === address)
@@ -158,21 +176,33 @@ export function useSimulator() {
 
   function applyStepDiff(writes: ReturnType<typeof bus.write>['writes'], pinChanges: ReturnType<typeof bus.write>['pinChanges']) {
     const flashed = new Map<number, number[]>()
-    let last: string | null = null
+    const transientValues = new Map<number, number>()
+    const glowing = new Set<string>()
+    let first: string | null = null
     for (const w of writes) {
       flashed.set(w.address, w.bitsFlipped)
-      last = w.register
-      log('info', `WRITE ${w.register} : ${hex(w.oldValue)} → ${hex(w.newValue)} (bits: ${w.bitsFlipped.join(', ') || '—'})`)
+      glowing.add(w.register)
+      if (first === null) first = w.register
+      if (w.transientValue !== undefined && w.transientValue !== w.newValue) {
+        transientValues.set(w.address, w.transientValue)
+        log('info', `WRITE ${w.register} : ${hex(w.oldValue)} → ${hex(w.transientValue)} → ${hex(w.newValue)} [hw-reclaimed] (bits: ${w.bitsFlipped.join(', ') || '—'})`)
+      } else {
+        log('info', `WRITE ${w.register} : ${hex(w.oldValue)} → ${hex(w.newValue)} (bits: ${w.bitsFlipped.join(', ') || '—'})`)
+      }
     }
     for (const pc of pinChanges) log('info', `PIN ${pc.pin} : ${pc.oldStatus} → ${pc.newStatus}`)
-    if (last) lastChangedRegister.value = last
-    flushSnapshot(flashed)
+    if (first) lastChangedRegister.value = first
+    highlightedRegisters.value = glowing
+    flushSnapshot(flashed, transientValues)
     // Flash duration scales with run speed so a slow-step learner gets to
     // see the bit highlight, while a fast-run user doesn't see overlap.
     const flashMs = Math.max(300, Math.min(speedMs.value - 100, 1500))
     if (flashed.size > 0) setTimeout(() => {
+      // After the flash window, revert to the actual stored values
+      // (BSHR/BCR fall back to 0) and drop all glows.
       flushSnapshot()
       lastChangedRegister.value = null
+      highlightedRegisters.value = new Set()
     }, flashMs)
   }
 
@@ -256,6 +286,7 @@ export function useSimulator() {
     paused,
     speedMs,
     lastChangedRegister,
+    highlightedRegisters,
     compile,
     step,
     run,

@@ -52,18 +52,19 @@ export const gpioHook: WriteHook = {
     if (base == null) return
     const offset = reg.address - base
 
-    // BSHR: bits[15:0] = set, bits[31:16] = reset. Bits sticky-set OUTDR.
+    // BSHR: bits[15:0] = set, bits[31:16] = reset. Per RM §7.3.1.4:
+    // "If both BR and BS bits are set, the BS bit takes effect." So we
+    // do the reset first and then the set — the set masks the reset.
     if (offset === OFF_BSHR) {
       const v = bus.read(reg.address)
       const setMask   = v & 0xFFFF
       const resetMask = (v >>> 16) & 0xFFFF
-      // Reset takes precedence over set if both are written to the same bit.
       const odrAddr   = base + OFF_OUTDR
       const odr       = bus.read(odrAddr)
-      let nextOdr     = (odr | setMask) >>> 0
-      nextOdr         = (nextOdr & ~resetMask) >>> 0
+      let nextOdr     = (odr & ~resetMask) >>> 0
+      nextOdr         = (nextOdr | setMask) >>> 0
       if (nextOdr !== odr) bus.writeSilent(odrAddr, nextOdr)
-      // BSHR itself reads as 0 after the write completes.
+      // BSHR itself reads as 0 after the write completes (per RM — WO).
       bus.writeSilent(reg.address, 0)
       return
     }

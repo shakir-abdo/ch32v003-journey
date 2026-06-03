@@ -16,7 +16,7 @@ useSeoMeta({
 
 const {
   registers, pins, consoleEntries, activeLineRange,
-  running, halted, paused, speedMs, lastChangedRegister,
+  running, halted, paused, speedMs, lastChangedRegister, highlightedRegisters,
   compile, step, run, pause, reset, clearConsole, manualWrite
 } = useSimulator()
 
@@ -208,7 +208,11 @@ function onManualWrite(address: number, value: number) {
 
     <!-- Row 1: Registers (full width, internal 4-col grid) -->
     <div class="mb-4">
-      <SimRegisterPanel :registers="registers" :highlighted-register="lastChangedRegister" />
+      <SimRegisterPanel
+        :registers="registers"
+        :highlighted-register="lastChangedRegister"
+        :highlighted-registers="highlightedRegisters"
+      />
     </div>
 
     <!-- Row 2: Editor (2/3) + Chip (1/3). Both have a fixed height so the

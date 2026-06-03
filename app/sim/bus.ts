@@ -53,6 +53,11 @@ export class Bus {
   private hooks: WriteHook[] = []
   private pinModel: PinModel | null = null
   private lastPinStatus = new Map<string, PinStatus>()
+  /** Optional warning sink so unmapped-MMIO writes don't fail silently. */
+  private warnSink: ((msg: string) => void) | null = null
+  setWarnSink(fn: ((msg: string) => void) | null): void { this.warnSink = fn }
+  /** Public — peripheral hooks can publish warnings via the bus. */
+  warn(msg: string): void { this.warnSink?.(msg) }
 
   constructor() {
     this.reset()
@@ -62,6 +67,7 @@ export class Bus {
     this.values.clear()
     for (const r of REGISTERS) this.values.set(r.address, r.reset >>> 0)
     this.lastPinStatus.clear()
+    this.warnedReadAddresses.clear()
     if (this.pinModel) {
       this.lastPinStatus = this.pinModel.resolvePins(this)
     }
@@ -76,8 +82,19 @@ export class Bus {
   }
 
   read(address: number): number {
-    return (this.values.get(address) ?? 0) >>> 0
+    const v = this.values.get(address)
+    if (v === undefined && !REGISTER_BY_ADDR.has(address)) {
+      // Only warn once per address to avoid flooding the console on a
+      // tight read loop.
+      if (!this.warnedReadAddresses.has(address)) {
+        this.warnedReadAddresses.add(address)
+        const hex = '0x' + (address >>> 0).toString(16).toUpperCase().padStart(8, '0')
+        this.warn(`read from unmapped MMIO address ${hex} returned 0 — register not simulated.`)
+      }
+    }
+    return (v ?? 0) >>> 0
   }
+  private warnedReadAddresses = new Set<number>()
 
   /** Internal write — applies the value but doesn't open a transaction. */
   writeSilent(address: number, value: number): void {
@@ -101,6 +118,19 @@ export class Bus {
             ...directFlips,
             ...intermediateFlips
           ])
+          // Remember the highest "user-visible" value the register held
+          // during this tx, so the UI can flash with what was actually
+          // written before the hook reclaimed it. We keep the value that
+          // is different from oldValue when one of the two newValues
+          // matches it.
+          if (oldEntry.newValue !== oldEntry.oldValue && newValue === oldEntry.oldValue) {
+            // The register is being reverted to its pre-tx state — keep
+            // the previous newValue as the visible transient.
+            oldEntry.transientValue = oldEntry.newValue
+          } else if (oldEntry.transientValue == null && newValue !== oldEntry.oldValue) {
+            // Otherwise, the first non-oldValue we see is the user's intent.
+            oldEntry.transientValue = newValue
+          }
           oldEntry.newValue = newValue
           oldEntry.bitsFlipped = [...allFlipped].sort((a, b) => a - b)
         } else {
@@ -131,6 +161,8 @@ export class Bus {
   write(address: number, rawValue: number): {writes: RegisterWrite[]; pinChanges: PinChange[]} {
     const reg = REGISTER_BY_ADDR.get(address)
     if (!reg) {
+      const hex = '0x' + (address >>> 0).toString(16).toUpperCase().padStart(8, '0')
+      this.warn(`write to unmapped MMIO address ${hex} ignored — only the registers listed in registers.ts are simulated.`)
       return {writes: [], pinChanges: []}
     }
 

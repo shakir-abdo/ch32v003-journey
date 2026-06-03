@@ -5,8 +5,10 @@ const {t} = useI18n()
 
 const props = defineProps<{
   registers?: Array<RegisterDef & {value: number; flashedBits?: number[]}>
-  /** Name of the register that just changed — gets a glowing border + scrolls into view. */
+  /** Name of the register the panel auto-scrolls to (the first one touched in the step). */
   highlightedRegister?: string | null
+  /** Every register that's currently in the flash window — all get the glow ring. */
+  highlightedRegisters?: Set<string>
 }>()
 
 const list = computed(() => props.registers ?? [])
@@ -21,7 +23,8 @@ function isFlashed(r: {flashedBits?: number[]}, i: number) {
   return r.flashedBits?.includes(i) ?? false
 }
 function isHighlighted(name: string) {
-  return props.highlightedRegister === name
+  return props.highlightedRegisters?.has(name)
+      || props.highlightedRegister === name
 }
 
 // Auto-scroll the highlighted register into view inside this panel only.

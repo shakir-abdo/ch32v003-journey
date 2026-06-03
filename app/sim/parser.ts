@@ -185,7 +185,15 @@ class Parser {
       if (this.looksLikeFunctionDef()) {
         const fn = this.parseFunctionDef()
         if (fn.name === 'main') {
-          main = fn
+          if (main) {
+            // We already had a synthetic main collecting top-level
+            // statements — prepend them to the real main's body so the
+            // user's code isn't silently lost.
+            this.warnings.push(`Line ${fn.startLine}: top-level statements before main() were prepended to its body.`)
+            main = {...fn, body: [...main.body, ...fn.body]}
+          } else {
+            main = fn
+          }
         } else {
           this.warnings.push(`Function ${fn.name} declared but only main() runs in v1.`)
         }

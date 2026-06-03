@@ -47,10 +47,20 @@ function rdyForSource(sw: number, ctlr: number): boolean {
 export const rccHook: WriteHook = {
   matches: (a) => a >= RCC_BASE && a < RCC_BASE + 0x40,
 
-  onWrite({bus, reg}: WriteContext) {
+  onWrite({bus, reg, oldValue}: WriteContext) {
     // RCC_CTLR — recompute HSIRDY / HSERDY / PLLRDY from ON bits.
     if (reg.address === RCC_CTLR) {
       const v = bus.read(RCC_CTLR)
+      // Detect attempt to clear HSION while HSI is the active SYSCLK
+      // source. Real hardware blocks this; we let the value land but
+      // warn so the learner sees why their code would hang on a real chip.
+      const cfgr = bus.read(RCC_CFGR0)
+      const swsBeforeReconcile = (cfgr & SWS_MASK) >>> 2
+      const hsiWasOn  = (oldValue & HSION) !== 0
+      const hsiNowOff = (v & HSION) === 0
+      if (hsiWasOn && hsiNowOff && swsBeforeReconcile === 0) {
+        bus.warn('clearing HSION while HSI is the active SYSCLK source — on a real chip this is silently blocked; here it succeeds and leaves the bus in an impossible state.')
+      }
       let next = v
       next = setBit(next, HSIRDY, !!(v & HSION))
       next = setBit(next, HSERDY, !!(v & HSEON))

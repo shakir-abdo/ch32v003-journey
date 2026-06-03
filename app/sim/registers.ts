@@ -25,7 +25,10 @@ export const REGISTERS: RegisterEntry[] = [
     name: 'RCC_CTLR', peripheral: 'RCC',
     address: RCC_BASE + 0x00,
     reset: 0x00000083,                  // HSION + HSIRDY + default trim
-    readOnlyMask: (1 << 1) | (1 << 17) | (1 << 25),  // HSIRDY | HSERDY | PLLRDY
+    // HSIRDY/HSERDY/PLLRDY are RO per RM §3.4.1. HSICAL[15:8] is hardware-
+    // calibrated and RO too (RM lists "calibration result" — writes have no
+    // effect on real silicon).
+    readOnlyMask: (1 << 1) | (1 << 17) | (1 << 25) | (0xFF << 8),
     fields: {0: 'HSION', 1: 'HSIRDY', 16: 'HSEON', 17: 'HSERDY', 24: 'PLLON', 25: 'PLLRDY'}
   },
   {
