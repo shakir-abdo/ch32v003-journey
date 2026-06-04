@@ -833,7 +833,7 @@
         "flashTitle": "Compile the code and write it to a real CH32V003 via WCH-LinkE. Requires Chrome/Edge/Brave + a connected programmer.",
         "flashDismiss": "Dismiss",
         "flashToastSuccess": "Flashed successfully",
-        "flashToastSuccessBody": "{bytes} bytes written in {secs} s — the LED should now be running the new firmware.",
+        "flashToastSuccessBody": "{bytes} bytes written in {secs} s — the chip is now running your new firmware.",
         "flashToastError": "Flash failed",
         "phaseIdle": "Idle",
         "phaseCompiling": "Compiling source",

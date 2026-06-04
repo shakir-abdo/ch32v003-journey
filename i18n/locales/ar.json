@@ -833,7 +833,7 @@
         "flashTitle": "ترجمة الكود ثم كتابته على شريحة CH32V003 حقيقية عبر WCH-LinkE. يتطلّب Chrome/Edge/Brave + مبرمجة مُوصَّلة.",
         "flashDismiss": "إخفاء",
         "flashToastSuccess": "تمّ الحرق بنجاح",
-        "flashToastSuccessBody": "كُتبت {bytes} بايت في {secs} ثانية — يجب أن تكون الـ LED تنبض بالبرنامج الجديد.",
+        "flashToastSuccessBody": "كُتبت {bytes} بايت في {secs} ثانية — الشريحة تنفّذ برنامجك الجديد الآن.",
         "flashToastError": "فشل الحرق",
         "phaseIdle": "جاهز",
         "phaseCompiling": "ترجمة الكود",

@@ -204,7 +204,7 @@ export function useFlashHardware(opts: UseFlashHardwareOptions) {
         phase.value    = 'done'
         progress.value = 100
         detail.value   = `${result.bytes} B in ${(result.totalMs / 1000).toFixed(2)} s`
-        log('info', `✓ flashed + verified in ${result.totalMs} ms — LED should be running new firmware`)
+        log('info', `✓ flashed + verified in ${result.totalMs} ms — chip is running the new firmware`)
         dismissSoon()
         return true
       } finally {
