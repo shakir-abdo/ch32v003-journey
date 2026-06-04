@@ -27,14 +27,20 @@ SIZE="$TOOL/riscv-none-embed-size"
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
-# Common compile flags (verbatim from PlatformIO -v).
+# Common compile flags. Mirrors ch32v003fun's own ch32v003fun.mk
+# (-march=rv32ec, no `xw`). PlatformIO's bundled toolchain has a WCH-
+# patched GCC that accepts `rv32ecxw` for compressed-bus-write code-size
+# optimisations, but upstream xPack riscv-none-embed-gcc — which is what
+# the production Docker image uses — only supports the standard `rv32ec`.
+# Functional equivalence; the .bin is a few hundred bytes larger without
+# the WCH compressed extensions.
 CFLAGS=(
   -std=gnu11 -Os -g -Wall
   -msmall-data-limit=0 -msave-restore
   -fmessage-length=0 -fsigned-char
   -ffunction-sections -fdata-sections -fno-common
   -Wunused -Wuninitialized -Wno-comment
-  -march=rv32ecxw -mabi=ilp32e
+  -march=rv32ec -mabi=ilp32e
   -flto -static-libgcc -nostdlib
   -DCH32V003J4 -DCH32V00X -DCH32V00x -DCH32V003
   -I"$(dirname "$(realpath "$0")")"
@@ -53,7 +59,7 @@ CFLAGS=(
 # Link.
 "$GCC" \
   -T "$WORK/link.ld" \
-  -Os -march=rv32ecxw -mabi=ilp32e \
+  -Os -march=rv32ec -mabi=ilp32e \
   -ffunction-sections -fdata-sections -Wl,-gc-sections \
   --specs=nano.specs --specs=nosys.specs \
   -nostartfiles -flto -static-libgcc -nostdlib \
