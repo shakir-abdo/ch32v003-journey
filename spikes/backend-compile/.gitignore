@@ -1,0 +1,7 @@
+# Staged build context for Docker — recreated by stage-context.sh
+_ctx/
+
+# Compiled outputs from local builds
+*.bin
+*.elf
+*.o

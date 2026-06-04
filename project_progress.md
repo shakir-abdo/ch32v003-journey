@@ -28,7 +28,13 @@
   - **Critical:** `81 0d 01 ff` is NOT a true resume — it just closes LinkE session. After PROGBUF/DMCONTROL writes, must use `DMCONTROL = 0x40000001` (resumereq + dmactive) OR full reboot (`0x80000003` NDMRESET → `0x40000001`).
   - WCH "song and dance": before resume, write `0x5aa50000 | (1<<10)` to DMSHDWCFGR (0x7E) + DMCFGR (0x7D) ×3.
   - Standalone resume/reboot buttons must call linkeIdentify first to open the debug session, else LinkE returns stale buffer.
-- ⏳ Backend compile spike — Docker + riscv-none-elf-gcc + ch32v003fun headers, /api/compile endpoint, < 3s build time, sandbox + rate-limit
+- ✅ **Backend compile spike** — `spikes/backend-compile/` proves the toolchain pipeline.
+  - Native compile (xPack riscv-none-embed-gcc 8.2.0): **0.27s** (cold and warm), output 1748 bytes
+  - Docker compile (debian:bookworm-slim + bundled toolchain + framework): **~1.0s** including container startup
+  - Output is byte-identical (same SHA256) between native and container
+  - Image size: 1.66 GB (toolchain alone is 1.1 GB — xPack 8.2.0 includes every rv32/64 multilib)
+  - Verdict: easily fits the < 3s target; for serverless we'd slim to rv32ec multilib only (~125 MB plausible)
+  - Compile flags mirror PlatformIO+ch32v003fun exactly; `--specs=nano.specs --specs=nosys.specs -nostdlib` keeps newlib usage minimal
 - ⏳ TCC.js / C-interpreter spike — research a maintained WASM C compiler with MMIO hook surface
 
 ### Phase 1 — The real port (after spikes)
