@@ -6,6 +6,18 @@ export default defineNuxtConfig({
   },
   devtools: {enabled: true},
 
+  // Runtime config — `recaptchaSecretKey` is server-only; `public.recaptchaSiteKey`
+  // is exposed to the client. Both default empty; populated at runtime from
+  // NUXT_RECAPTCHA_SECRET_KEY and NUXT_PUBLIC_RECAPTCHA_SITE_KEY env vars
+  // (Nuxt's standard override mechanism). Leaving them empty disables the
+  // reCAPTCHA gate — useful for local dev / smoke tests.
+  runtimeConfig: {
+    recaptchaSecretKey: '',
+    public: {
+      recaptchaSiteKey: ''
+    }
+  },
+
   modules: [
     '@nuxt/ui-pro',
     '@nuxt/image',

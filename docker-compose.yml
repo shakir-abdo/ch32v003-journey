@@ -40,6 +40,11 @@ services:
       # /api/compile proxies to this URL. Service name resolves via the
       # `internal` network declared at the bottom.
       COMPILER_URL: http://compiler:3001
+      # Optional reCAPTCHA v3 gate. Set both to disable scripted abuse of
+      # /api/compile; leave empty for local dev. Picked up automatically by
+      # Nuxt's runtimeConfig override (NUXT_* prefix → camelCase).
+      NUXT_RECAPTCHA_SECRET_KEY: ${NUXT_RECAPTCHA_SECRET_KEY:-}
+      NUXT_PUBLIC_RECAPTCHA_SITE_KEY: ${NUXT_PUBLIC_RECAPTCHA_SITE_KEY:-}
     networks:
       - internal
     depends_on:

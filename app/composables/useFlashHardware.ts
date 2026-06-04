@@ -14,6 +14,34 @@ import {
   type FlashEvent, type FlashResult,
 } from '~/sim/wch-linke'
 
+// Window.grecaptcha is injected by the script tag we load in /playground
+// when NUXT_PUBLIC_RECAPTCHA_SITE_KEY is configured.
+interface Grecaptcha {
+  ready(callback: () => void): void
+  execute(siteKey: string, options: {action: string}): Promise<string>
+}
+declare global {
+  interface Window {grecaptcha?: Grecaptcha}
+}
+
+/** Poll for `window.grecaptcha` then ask it for a v3 token. Times out at
+ * 5 s — beyond that something else (network, extension) is blocking the
+ * Google script and the user should know rather than wait silently. */
+async function fetchRecaptchaToken(siteKey: string, timeoutMs = 5000): Promise<string> {
+  const start = performance.now()
+  while (!window.grecaptcha) {
+    if (performance.now() - start > timeoutMs) throw new Error('grecaptcha not loaded')
+    await new Promise((r) => setTimeout(r, 50))
+  }
+  return await new Promise<string>((resolve, reject) => {
+    window.grecaptcha!.ready(() => {
+      window.grecaptcha!.execute(siteKey, {action: 'compile'})
+        .then(resolve)
+        .catch((err: unknown) => reject(err instanceof Error ? err : new Error(String(err))))
+    })
+  })
+}
+
 export type FlashLogLevel = 'info' | 'warn' | 'error'
 export interface FlashLogEntry {level: FlashLogLevel; msg: string}
 
@@ -121,16 +149,28 @@ export function useFlashHardware(opts: UseFlashHardwareOptions) {
   }
 
   async function compileSource(source: string): Promise<Uint8Array> {
-    const res = await fetch('/api/compile', {
-      method: 'POST',
-      headers: {'content-type': 'text/x-c'},
-      body: source,
-    })
+    const headers: Record<string, string> = {'content-type': 'text/x-c'}
+    // Attach a fresh reCAPTCHA v3 token if a site key is configured. The
+    // server skips verification when no secret is set, so omitting the
+    // header is harmless in local-dev / smoke-test contexts.
+    const siteKey = useRuntimeConfig().public.recaptchaSiteKey
+    if (siteKey) {
+      try {
+        headers['x-recaptcha-token'] = await fetchRecaptchaToken(siteKey)
+      } catch (e) {
+        throw new Error(
+          'reCAPTCHA failed to load — disable any extension blocking google.com ' +
+          'or check the network tab. ' +
+          (e instanceof Error ? e.message : String(e)),
+        )
+      }
+    }
+    const res = await fetch('/api/compile', {method: 'POST', headers, body: source})
     if (!res.ok) {
       let body = ''
       try {
-        const j = await res.json() as {data?: {log?: string}; statusMessage?: string}
-        body = j.data?.log ?? j.statusMessage ?? ''
+        const j = await res.json() as {data?: {log?: string; detail?: string}; statusMessage?: string}
+        body = j.data?.log ?? j.data?.detail ?? j.statusMessage ?? ''
       } catch {
         body = await res.text().catch(() => '')
       }

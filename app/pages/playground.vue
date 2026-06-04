@@ -122,6 +122,25 @@ function onManualWrite(address: number, value: number) {
 }
 
 // ─── Hardware flash (real chip via WebUSB → /api/compile → wch-linke) ──
+const runtimeConfig = useRuntimeConfig()
+const recaptchaSiteKey = runtimeConfig.public.recaptchaSiteKey
+
+// Inject the reCAPTCHA v3 script only when a site key is configured —
+// keeps the page free of third-party requests in dev / on a fork without
+// keys. Google's script self-installs window.grecaptcha + the floating
+// badge; useFlashHardware grabs a fresh token per Flash click.
+if (recaptchaSiteKey) {
+  useHead({
+    script: [
+      {
+        src: `https://www.google.com/recaptcha/api.js?render=${recaptchaSiteKey}`,
+        async: true,
+        defer: true,
+      },
+    ],
+  })
+}
+
 const toast = useToast()
 const {
   flash: flashHardware, flashing: hwFlashing,
