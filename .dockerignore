@@ -45,6 +45,10 @@ test-results/
 # Agent + skill metadata stays out of the image — used at dev time only
 .claude/
 
+# Spike folder is the compiler service's own build context (see
+# docker-compose.yml). Don't ship its 1.1 GB toolchain with the Nuxt image.
+spikes/
+
 # Misc dev files
 project_progress.md
 README.md

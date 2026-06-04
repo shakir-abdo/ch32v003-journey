@@ -1,12 +1,20 @@
-# Compose file for local testing of the production image, and the
+# Compose file for local testing of the production stack, and the
 # Dokploy-compatible service definition for production deployment.
 #
+# Two services on an internal network:
+#   - app      : Nuxt 4 front-end (public on :3000)
+#   - compiler : RISC-V toolchain + HTTP wrapper (internal only, :3001)
+#
 # Local quick-start:
-#   echo "NUXT_UI_PRO_LICENSE=xxx" > .env   # required at build time
+#   echo "NUXT_UI_PRO_LICENSE=xxx" > .env
+#   ./spikes/backend-compile/stage-context.sh   # one-time: stages _ctx/
 #   docker compose up --build
 #
 # Then:
 #   curl http://localhost:3000/api/health
+#   curl -X POST http://localhost:3000/api/compile \
+#        --data-binary @spikes/backend-compile/examples/blink.c \
+#        -o /tmp/firmware.bin
 #
 # Dokploy notes:
 #   - Dokploy parses this file as-is for "Docker Compose" application type.
@@ -14,25 +22,67 @@
 #     DO NOT commit it. The build_args reference below pulls it from those
 #     env vars at build time.
 #   - Set a domain on the `app` service in Dokploy's Domains panel.
+#   - The `compiler` service has no published port — accessible only via
+#     the internal compose network at http://compiler:3001.
 
 services:
   app:
     build:
       context: .
       dockerfile: Dockerfile
-      # Nuxt UI Pro license is required at build time. Dokploy + Compose
-      # both honor build args sourced from environment variables.
       args:
         NUXT_UI_PRO_LICENSE: ${NUXT_UI_PRO_LICENSE}
     image: ch32v003-journey:latest
     restart: unless-stopped
     ports:
       - '3000:3000'
+    environment:
+      # /api/compile proxies to this URL. Service name resolves via the
+      # default compose network.
+      COMPILER_URL: http://compiler:3001
+    depends_on:
+      compiler:
+        condition: service_healthy
     healthcheck:
-      # Override the image-level healthcheck so it shows up in `docker ps`
-      # with friendly intervals.
       test: ['CMD', 'wget', '--spider', '--quiet', 'http://127.0.0.1:3000/api/health']
       interval: 30s
       timeout: 5s
       start_period: 15s
+      retries: 3
+
+  compiler:
+    build:
+      context: ./spikes/backend-compile
+      dockerfile: Dockerfile
+    image: ch32v003-compiler:latest
+    restart: unless-stopped
+    # No `ports:` — compiler is reachable only from the app service via
+    # the compose internal network. Exposed locally on :3001 only if you
+    # uncomment the line below (handy for direct curl testing).
+    # ports:
+    #   - '3001:3001'
+    environment:
+      MAX_BODY: '262144'           # 256 KB input cap
+      COMPILE_TIMEOUT_MS: '5000'
+      MAX_CONCURRENT: '4'
+    # Resource caps — defence in depth for untrusted user-supplied C.
+    mem_limit: 512m
+    cpus: 1.0
+    # Read-only root + tmpfs /tmp so the only writable area is the per-
+    # request scratch directory the server creates.
+    read_only: true
+    tmpfs:
+      - /tmp:exec,size=64m
+      - /work:exec,size=8m
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - '-e'
+        - "require('http').get('http://127.0.0.1:3001/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+      interval: 15s
+      timeout: 3s
+      start_period: 5s
       retries: 3

@@ -57,6 +57,10 @@ RUN corepack enable pnpm
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Node default heap is 2 GB — Nuxt 4 + UI Pro + Nitro server build hits it
+# during the prerender/server-bundle phase on this project. Bump to 4 GB.
+ENV NODE_OPTIONS=--max-old-space-size=4096
+
 ARG NUXT_UI_PRO_LICENSE
 RUN --mount=type=secret,id=nuxt_ui_pro_license,required=false \
     if [ -s /run/secrets/nuxt_ui_pro_license ]; then \
