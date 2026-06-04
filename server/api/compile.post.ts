@@ -37,6 +37,54 @@ const ALLOWED_ORIGINS = new Set<string>([
 const RECAPTCHA_MIN_SCORE = 0.5
 const RECAPTCHA_VERIFY_URL = 'https://www.google.com/recaptcha/api/siteverify'
 
+// In-memory compile cache. Key = SHA256(body), value = the produced .bin
+// + GCC log. Identical sources within CACHE_TTL_MS get the .bin back in
+// ~2 ms instead of paying the ~280 ms compile round-trip. Bounded by
+// CACHE_MAX_ENTRIES with FIFO eviction (Map preserves insertion order) +
+// lazy sweep of expired entries on insert.
+//
+// Per-instance: this cache doesn't survive a container restart and isn't
+// shared between replicas. If we ever scale horizontally, move to Redis
+// or a content-addressed object store and re-evaluate the TTL.
+interface CachedCompile {bin: Uint8Array; log: string; expiresAt: number}
+const CACHE_TTL_MS = 60_000
+const CACHE_MAX_ENTRIES = 256
+const compileCache = new Map<string, CachedCompile>()
+
+function cacheLookup(key: string): CachedCompile | null {
+  const entry = compileCache.get(key)
+  if (!entry) return null
+  if (entry.expiresAt < Date.now()) {
+    compileCache.delete(key)
+    return null
+  }
+  return entry
+}
+
+function cacheStore(key: string, bin: Uint8Array, log: string): void {
+  if (compileCache.size >= CACHE_MAX_ENTRIES) {
+    const now = Date.now()
+    for (const [k, v] of compileCache) if (v.expiresAt < now) compileCache.delete(k)
+    while (compileCache.size >= CACHE_MAX_ENTRIES) {
+      const firstKey = compileCache.keys().next().value
+      if (firstKey === undefined) break
+      compileCache.delete(firstKey)
+    }
+  }
+  compileCache.set(key, {bin, log, expiresAt: Date.now() + CACHE_TTL_MS})
+}
+
+async function sha256Hex(buf: Uint8Array): Promise<string> {
+  // Use the platform's WebCrypto (available in Node 19+ + every modern
+  // browser) so we don't need @types/node just for a hash. The cast
+  // navigates a recent lib.dom.d.ts tightening where `BufferSource`
+  // distinguishes `ArrayBuffer` from `SharedArrayBuffer`-backed views.
+  const digest = await crypto.subtle.digest('SHA-256', buf as BufferSource)
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
 interface RecaptchaResponse {
   success: boolean
   score?: number
@@ -119,6 +167,24 @@ export default defineEventHandler(async (event) => {
     throw createError({statusCode: 400, statusMessage: 'empty body — POST C source as the request body'})
   }
 
+  // ── Cache lookup ──────────────────────────────────────────────────
+  // SHA256 of the raw body; identical source → identical .bin so any
+  // hit within the TTL window can short-circuit the compile entirely.
+  // Buffer extends Uint8Array under the hood, but TS sees them as
+  // separate — wrap to satisfy the WebCrypto signature without `any`.
+  const cacheKey = await sha256Hex(new Uint8Array(body as unknown as ArrayBufferLike))
+  const cached = cacheLookup(cacheKey)
+  if (cached) {
+    setResponseHeaders(event, {
+      'content-type': 'application/octet-stream',
+      'content-length': cached.bin.length,
+      'x-compile-log': cached.log,
+      'x-cache': 'HIT',
+      'cache-control': 'no-store',
+    })
+    return cached.bin
+  }
+
   // ── Proxy to the compiler container ───────────────────────────────
   const compilerUrl = process.env.COMPILER_URL ?? 'http://compiler:3001'
   let upstream: Response
@@ -148,11 +214,13 @@ export default defineEventHandler(async (event) => {
 
   const bin = new Uint8Array(await upstream.arrayBuffer())
   const log = upstream.headers.get('x-compile-log') ?? ''
+  cacheStore(cacheKey, bin, log)
 
   setResponseHeaders(event, {
     'content-type': 'application/octet-stream',
     'content-length': bin.length,
     'x-compile-log': log,
+    'x-cache': 'MISS',
     'cache-control': 'no-store',
   })
   return bin
