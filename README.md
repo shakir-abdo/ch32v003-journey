@@ -5,7 +5,7 @@
 
 A structured, 22-lesson journey from your first Blinky to building production-grade firmware on a 30-cent RISC-V chip — written at the register level, with **CH32V003 Reference Manual v1.9** cross-references on every page.
 
-Plus an interactive **[/playground](https://ch32v003.shakir.sd/playground)** where you can write register-level C and watch every bit flip live before flashing real silicon.
+Plus an interactive **[/playground](https://ch32v003.shakir.sd/playground)** where you can write register-level C, watch every bit flip live in the simulator, **then flash it to a real CH32V003 from the browser** — no IDE, no CLI, no driver install. WebUSB talks to your WCH-LinkE programmer; a containerised toolchain produces the .bin in ~1 second.
 
 ![CH32V003 Journey screenshot](./public/og.png)
 
@@ -44,9 +44,18 @@ A browser-only register-level simulator for the CH32V003J4M6, at `/playground`. 
 - **Per-bit flash** on every register write; the just-touched register gets a warning-coloured glow
 - **Transient values** — atomic ops like `BSHR = (1<<1)` momentarily show the written value before hardware reclaims it, so the learner sees what they wrote, not just the post-tick result
 - **Diagnostics**: writes to unmapped MMIO get warned; impossible RCC states (clearing HSION while it's the active SYSCLK) get called out; missing PFIC enable on a CNTIF firing gets a specific "add `PFIC_IENR1 |= (1 << 12);`" hint
-- **6 presets** — Blink PC1/PC4 with inline busy-wait (truly bare-metal — no framework calls), multi-port enable, BSHR/BCR atomic demo, sysclk → PLL switch (with the failure case alongside), SysTick blink with PFIC + ISR
+- **8 presets** — Blink PC1/PC4 with inline busy-wait (truly bare-metal — no framework calls), multi-port enable, BSHR/BCR atomic demo, sysclk → PLL switch (with the failure case alongside), SysTick blink with PFIC + ISR
 
 Each lesson that exercises a supported peripheral surfaces a "Try in the playground" button that deep-links to the matching preset.
+
+### Browser-to-chip flash flow
+
+The same playground that simulates your code can flash it to real hardware:
+
+- **One "Flash to chip" button** in the editor header. The browser POSTs your C source to `/api/compile` (Node-wrapped riscv-none-embed-gcc 8.2 in a sandboxed container), gets a flat .bin, then drives the WCH-LinkE over WebUSB directly — unlock + mass erase + page program + verify + reboot in ~2.6 seconds.
+- **No IDE, no CLI, no driver install.** Works in Chrome / Edge / Brave on Linux, Windows (with Zadig driver swap), and macOS.
+- **No fragile USB shims.** All flash protocol primitives live in [`app/sim/wch-linke.ts`](app/sim/wch-linke.ts) (~440 LOC, strict TS) — ported from the proven `minichlink` C implementation. Every gotcha that cost real debugging time (BUF_LOAD atomicity, 0x08000000 flash alias, WCH "song and dance" DMCFGR keys, register clobber on PROGBUF execution) is documented inline.
+- **Live progress UI** — phase-tinted banner with progress bar, X/Y page counter, success/error toast.
 
 ## Stack
 
@@ -54,9 +63,13 @@ Each lesson that exercises a supported peripheral surfaces a "Try in the playgro
 - **Nuxt UI Pro** + **Tailwind 4** for styling
 - **@nuxtjs/i18n** — Arabic (RTL, default) + English (LTR)
 - **Cyberpunk** design system (dark HUD aesthetic, neon accents)
+- **WebUSB** driver for WCH-LinkE — pure browser, no native helper
+- **Docker compose** — `app` (Nuxt) + `compiler` (riscv-none-embed-gcc 8.2 + ch32v003fun, internal HTTP wrapper). Dokploy-ready.
 - Markdown lessons stored in `content/lessons/*.md`
 
 ## Development
+
+### Frontend only (no flash flow)
 
 ```bash
 pnpm install
@@ -65,7 +78,25 @@ pnpm build        # production
 pnpm preview      # preview the build
 ```
 
-Node 18+ required.
+Node 22+ required.
+
+### Full stack (frontend + compile service)
+
+```bash
+docker compose up --build       # → http://localhost:3000
+```
+
+Two services come up: `app` on `:3000` (public) and `compiler` on the
+internal compose network. The compiler image self-bootstraps — it
+downloads the xPack toolchain + ch32v003fun framework at build time,
+so no host-side staging or PlatformIO install is required.
+
+For `/api/compile` smoke test:
+```bash
+curl -X POST http://localhost:3000/api/compile \
+  --data-binary @spikes/backend-compile/examples/blink.c \
+  -o firmware.bin
+```
 
 ## Project layout
 
@@ -75,7 +106,7 @@ app/
     sim/           # ChipDiagram, RegisterPanel, CodeEditor (CodeMirror 6),
                    # ControlBar, Tutorial, PresetMenu, Console
   pages/           # index, lessons/*, about, resources, playground
-  composables/     # useSimulator, useLessonProgress
+  composables/     # useSimulator, useLessonProgress, useFlashHardware
   sim/             # simulator engine (pure TS, no Vue)
     lexer.ts       # tokenizer
     parser.ts      # recursive-descent → AST
@@ -86,6 +117,7 @@ app/
     registers.ts   # register dictionary
     presets.ts     # preset snippets
     peripherals/   # gpio, rcc, systick, pfic
+    wch-linke.ts   # WebUSB driver: WCH-LinkE → CH32V003 flash flow
   layouts/         # default cyberpunk layout
   assets/main.css  # cyberpunk design tokens
 content/
@@ -97,7 +129,11 @@ public/
   hardware/        # WCH-LinkE + chip images
   robots.txt
 server/
+  api/             # health, compile (POST → riscv-none-embed-gcc → .bin)
   routes/          # sitemap.xml endpoint
+spikes/
+  backend-compile/ # compiler Docker service (riscv-none-embed-gcc + ch32v003fun
+                   # + tiny Node.js HTTP wrapper) — referenced by docker-compose
 ```
 
 ## Author
