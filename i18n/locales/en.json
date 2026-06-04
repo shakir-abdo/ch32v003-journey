@@ -817,7 +817,6 @@
         "invalid": "invalid value"
       },
       "ctrl": {
-        "compile": "Compile",
         "run": "Run",
         "resume": "Resume",
         "pause": "Pause",
@@ -857,8 +856,8 @@
         "subtitle": "Six quick steps so you know what every piece of this page does.",
         "s1Title": "Pick an example",
         "s1Body": "Use the dropdown at the top to load a ready-made snippet (e.g. Blink PC1). It drops the code into the editor.",
-        "s2Title": "Hit 'Compile'",
-        "s2Body": "Compile parses the C-like source, builds the AST, and primes the execution engine.",
+        "s2Title": "Hit 'Run'",
+        "s2Body": "Run compiles the source under the hood and starts executing. Prefer one statement at a time? Use Step instead.",
         "s3Title": "Step through it",
         "s3Body": "Step runs one statement at a time. The active line highlights in the editor. Or hit Run for slow auto-play.",
         "s4Title": "Watch the bits",

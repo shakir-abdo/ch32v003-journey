@@ -15,7 +15,7 @@ const emit = defineEmits<{close: []}>()
 
 const steps = computed(() => [
   {icon: 'i-lucide-list',           title: t('app.sim.tutorial.s1Title'), body: t('app.sim.tutorial.s1Body')},
-  {icon: 'i-lucide-hammer',         title: t('app.sim.tutorial.s2Title'), body: t('app.sim.tutorial.s2Body')},
+  {icon: 'i-lucide-play',           title: t('app.sim.tutorial.s2Title'), body: t('app.sim.tutorial.s2Body')},
   {icon: 'i-lucide-step-forward',   title: t('app.sim.tutorial.s3Title'), body: t('app.sim.tutorial.s3Body')},
   {icon: 'i-lucide-eye',            title: t('app.sim.tutorial.s4Title'), body: t('app.sim.tutorial.s4Body')},
   {icon: 'i-lucide-gauge',          title: t('app.sim.tutorial.s5Title'), body: t('app.sim.tutorial.s5Body')},

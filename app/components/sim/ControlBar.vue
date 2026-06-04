@@ -16,7 +16,6 @@ const emit = defineEmits<{
   pause: []
   step: []
   reset: []
-  compile: []
   'update:speedMs': [value: number]
   'update:tickMultiplier': [value: number]
 }>()
@@ -55,8 +54,9 @@ const playPause = computed(() => {
   return {icon: 'i-lucide-play', label: t('app.sim.ctrl.run'), color: 'var(--cy-success)', emit: 'run' as const, disabled: props.halted === true}
 })
 
+// Run / Step internally call compile() if no interpreter exists yet —
+// so a standalone Compile button was redundant. Dropped.
 const buttons = computed(() => [
-  {key: 'compile',  icon: 'i-lucide-hammer',       label: t('app.sim.ctrl.compile'), color: 'var(--cy-track-pro, #B14AED)', emit: 'compile' as const, disabled: props.running === true},
   {key: 'playpause',icon: playPause.value.icon,    label: playPause.value.label,     color: playPause.value.color,            emit: playPause.value.emit, disabled: playPause.value.disabled},
   {key: 'step',     icon: 'i-lucide-step-forward', label: t('app.sim.ctrl.step'),    color: 'var(--cy-primary)',              emit: 'step' as const,    disabled: props.running === true || props.halted === true},
   {key: 'reset',    icon: 'i-lucide-rotate-ccw',   label: t('app.sim.ctrl.reset'),   color: 'var(--cy-destructive)',          emit: 'reset' as const,   disabled: false}

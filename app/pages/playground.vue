@@ -17,7 +17,7 @@ useSeoMeta({
 const {
   registers, pins, consoleEntries, activeLineRange,
   running, halted, paused, speedMs, tickMultiplier, lastChangedRegister, highlightedRegisters,
-  compile, step, run, pause, reset, clearConsole, manualWrite
+  step, run, pause, reset, clearConsole, manualWrite
 } = useSimulator()
 
 // ─── persistent state (localStorage) ───────────────────────────────
@@ -113,7 +113,6 @@ function onRun()       { run(code.value) }
 function onPause()     { pause() }
 function onStep()      { step(code.value) }
 function onReset()     { reset() }
-function onCompile()   { compile(code.value) }
 function onRestore()   { resetToDefault() }
 function onShowHelp()  { openTutorial() }
 
@@ -292,7 +291,6 @@ const phaseStyle = computed(() => {
         @pause="onPause"
         @step="onStep"
         @reset="onReset"
-        @compile="onCompile"
       />
     </div>
 
