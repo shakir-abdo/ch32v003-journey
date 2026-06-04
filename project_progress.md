@@ -1,140 +1,65 @@
-# CH32V003J4M6 Simulator — Plan
+# CH32V003 Journey — Status
 
-Branch: `feat/simulator` (do NOT merge to main until v1 is done)
-Goal: a separate page where the learner writes register-level C-like code and watches the chip react pin-by-pin, step-by-step.
+## Shipped
+- Site live at ch32v003.shakir.sd (Nuxt 4 + @nuxt/content v3, MIT code / CC BY-NC-SA 4.0 content)
+- 22 bilingual lessons (AR + EN) across 7 tracks: Foundation, Core I/O, Comms, Analog, Pro, Bonus, Capstone
+- i18n: `prefix_except_default` strategy, Arabic at `/`, English at `/en/`
+- Browser playground at `/playground` — register-level simulator, CodeMirror 6 editor
+- Sim peripherals modelled: RCC, GPIO (A/C/D), SysTick (O(1) tick), PFIC interrupts
+- Presets validated on real hardware (PC1 blink, SysTick blink)
 
-## Scope of v1
+## Hardware-portable gotchas (baked into presets)
+- Busy-wait must use `volatile int i` — GCC -Os deletes non-volatile empty loops
+- SysTick blink needs `__attribute__((interrupt))` + `csrsi mstatus, 0x8` on hw; sim skips inline asm
+- HCLK default = 8 MHz (HSI / HPRE reset value 0010 = /3), NOT 24 MHz — affects every CMP/delay calculation
 
-- Chip: **CH32V003J4M6 only** (8-pin SOP-8). 6 usable GPIOs: PD6, PA2, PC1, PC2, PC4, PD4.
-- Peripherals simulated: **GPIO + RCC only** (covers L00–L05).
-- Code fidelity: **C-like DSL** (not real C). Same syntax the lessons already use — no toolchain in browser.
-- Execution: **manual Step** (Run/Step/Pause/Reset), one statement per click; current line highlighted, changed registers flashed.
+## Roadmap — compile + flash from browser (next big bet)
 
-Out of scope for v1: SysTick, EXTI, TIM, UART, SPI, I2C, ADC, interrupts, pointers beyond `*(volatile u32*)addr`, structs, malloc.
+### Phase 0 — De-risking spikes
+- ✅ **WebUSB ↔ WCH-LinkE feasibility** — `public/webusb-spike.html` proves every primitive needed for flash. Validated on hardware: LinkE v2.14 + CH32V003J4M6. All values byte-perfect vs minichlink.
+  - WCH-LinkE VID=0x1A86 PID=0x8010 (WCH-Link mode, NOT CMSIS-DAP)
+  - Interface 0 is Vendor Specific Class (255) → WebUSB-accessible
+  - Bulk EP1 IN/OUT (0x81/0x01), 64-byte packets
+  - LinkE-level commands work: identify (`81 0d 01 01`), chip detect, chip info, read-protect, close (`81 0d 01 ff`)
+  - DMI register tunneling works via `81 08 06 [reg7] [be4] [op]` (op=1 read, op=2 write)
+  - RISC-V abstract command + PROGBUF works (read+write modes, autoexec, x10/x11 setup via DMHARTINFO)
+  - Read live MMIO from target works (RCC, GPIO, UNIID — byte-perfect)
+  - Write live MMIO (RAM round-trip + GPIO toggle) works
+  - **Critical:** `81 0d 01 ff` is NOT a true resume — it just closes LinkE session. After PROGBUF/DMCONTROL writes, must use `DMCONTROL = 0x40000001` (resumereq + dmactive) OR full reboot (`0x80000003` NDMRESET → `0x40000001`).
+  - WCH "song and dance": before resume, write `0x5aa50000 | (1<<10)` to DMSHDWCFGR (0x7E) + DMCFGR (0x7D) ×3.
+  - Standalone resume/reboot buttons must call linkeIdentify first to open the debug session, else LinkE returns stale buffer.
+- ⏳ Backend compile spike — Docker + riscv-none-elf-gcc + ch32v003fun headers, /api/compile endpoint, < 3s build time, sandbox + rate-limit
+- ⏳ TCC.js / C-interpreter spike — research a maintained WASM C compiler with MMIO hook surface
 
-## Page
+### Phase 1 — The real port (after spikes)
+- Port remaining minichlink commands to JS as `app/sim/wch-linke.ts` (~200 LOC mechanical):
+  - UnlockFlash (4 writeMmio: KEYR keys + OBKEYR keys)
+  - EraseChip + WaitForFlash (poll FLASH_STATR.BSY @ 0x4002200C)
+  - ProgramFlash (page-by-page loop, 64-byte sectors, halfword writes via `MCF.WriteHalfWord`)
+  - ReadBack + verify
+- Backend `/api/compile` service (Cloud Run or VPS): C source → .bin in container with toolchain
+- UI: "Flash" button in editor header, connection state indicator, error/status console
 
-- Route: `/playground` (Arabic title: "المختبر"). Hide from main nav until v1 ships.
-- 3-pane layout (registers are the centerpiece — no virtual LEDs/buttons):
-  - **Left**: code editor (CodeMirror 6 minimal).
-  - **Center**: chip SVG (8 pins arranged like the J4M6 photo). Each GPIO pin shows a small badge with its **current status**:
-    - `HIGH` / `LOW` for digital output
-    - `INPUT` (floating / pull-up / pull-down sub-tag)
-    - `AF` (Alternate Function — annotate with which peripheral: USART, I2C, SPI…)
-    - `ADC` for analog input
-    - `HI-Z` when port clock is off or pin not configured
-    - `VCC` / `GND` for the two power pins (static labels)
-  - **Right**: register inspector — **all** simulated registers listed. Each register row shows:
-    - **Name + hex value** (e.g. `RCC_APB2PCENR  0x00000010`)
-    - **32 individual bit cells**, MSB→LSB, each cell is a small square showing `0` or `1`. Bit position numbers above (`31 30 29 … 1 0`).
-    - **Field labels** under groups of bits per the RM (e.g. for `GPIOC_CFGLR`: `CNF7|MODE7 | CNF6|MODE6 | … | CNF0|MODE0`).
-    - **Real-time bit-level highlighting**: when a step changes the register, only the bits that flipped flash (green = 0→1, red = 1→0) for ~600 ms then settle. This is the centrepiece — the learner should *see* which bits the line they just executed turned on or off.
-  - Both panels (pin status + register inspector) update inside the same step transaction so a pin going HIGH and the bit in `OUTDR` flipping are visually synchronised.
-- **Bottom strip**: control bar (Run / Step / Pause / Reset / speed slider) + console for errors and informational messages.
+### Phase 2 — C interpreter integration (parallel)
+- Hook chosen C-runtime's MMIO read/write to existing bus.ts so peripheral models still drive the visualisation
+- Keep step-by-step debugging if possible (depends on chosen runtime)
 
-## Engine architecture
+### Open spikes by impact
+- WebUSB + WCH-LinkE: ✅ DE-RISKED COMPLETELY (the highest-risk piece — all primitives proven)
+- Backend compile: low risk, well-understood Docker + GCC; need to spec hosting cost (~$5/mo VPS)
+- TCC.js: unknown — need to research maintained WASM C compilers (TCC, picoc, clang.wasm)
 
-```
-app/sim/
-  parser.ts          recursive-descent → AST (statements + expressions)
-  interpreter.ts     AST walker, one step = one statement
-  registers.ts       address ↔ name dictionary (single source of truth)
-  bus.ts             MMIO read/write router
-  peripherals/
-    rcc.ts           RCC_CTLR, CFGR0, APB2PCENR, RSTSCKR + ready-bit autoset
-    gpio.ts          GPIOA/C/D CFGLR, OUTDR, BSHR, BCR, INDR
-  types.ts
-app/composables/
-  useSimulator.ts    reactive bridge between engine and Vue components
-app/components/sim/
-  ChipDiagram.vue
-  CodeEditor.vue
-  RegisterPanel.vue
-  ControlBar.vue
-  Console.vue
-app/pages/
-  playground.vue
-```
+## Open / next (curriculum / sim)
+- Expand sim peripherals: ADC, DMA, UART, SPI, I2C, Timers
+- WCH outreach via pull-marketing (Hackaday tip + Show HN + ch32v003fun PR) — NOT cold email
+- Pull-target email: use `shicolare1@gmail.com` (the one published in CLAUDE.md, matches `@shakir-abdo` GitHub)
 
-### Parser subset
+## Sim non-goals (firm)
+- Cycle-accurate timing
+- User-defined function calls in the current DSL (bare-metal pedagogy) — supersedes once TCC.js lands
+- Virtual LEDs / external components
 
-Statements: `#define NAME value`, declaration (`u32 x = …`), assignment, compound assignment (`|= &= ^= <<= >>=`), `if/else`, `while`, `for`, function definition (only `main`), function call (`Delay_Ms` etc. — built-ins).
-
-Expressions: integer literals (dec/hex `0x..`/bin `0b..`), identifiers, `( … )`, unary `~ - !`, binary `+ - * / % << >> & | ^ < <= > >= == != && ||`, ternary, cast `(volatile u32*)expr`, dereference `*expr`.
-
-Built-ins (host-provided): `Delay_Ms(ms)`, `Delay_Us(us)` — advance simulated time and update pin states; nothing else.
-
-### Interpreter contract
-
-`step()` → executes one statement → returns:
-
-```ts
-{
-  lineRange: [start, end],
-  writes: Array<{
-    register: string,        // e.g. "RCC_APB2PCENR"
-    address: number,
-    oldValue: number,
-    newValue: number,
-    bitsFlipped: number[]    // exact bit positions that changed — drives the per-bit flash animation
-  }>,
-  pinChanges: Array<{pin: string, oldStatus: PinStatus, newStatus: PinStatus}>,
-  log?: string
-}
-```
-
-The UI consumes this diff and animates each flipped bit (red/green) and each pin status badge synchronously.
-
-MMIO writes detected by address range:
-- `0x40021000–0x4002103F` → RCC
-- `0x40010800–0x4001083F` → GPIOA
-- `0x40011000–0x4001103F` → GPIOC
-- `0x40011400–0x4001143F` → GPIOD
-
-Anything else → silent (or warning in console).
-
-### Pin model
-
-Each pin has: `{name, mode, cnf, level, status}` where `status` is the user-facing label (HIGH, LOW, INPUT, AF, ADC, HI-Z). Computed from:
-1. RCC clock enabled for that port? if no → `HI-Z`
-2. Mode bits (2-bit): `00` = input → resolve to `INPUT` + sub-status (floating/PU/PD via CNF + ODR)
-3. CNF bits (2-bit) when mode≠00: `00/01` = push-pull/open-drain output → `HIGH`/`LOW` based on ODR/BSHR/BCR; `10/11` = AF push-pull/open-drain → `AF` (sub-label = which peripheral, derived from pin mapping); when mode=00 + CNF=11 → `ADC`
-4. Last `BSHR`/`BCR`/`OUTDR` write applies for output bits
-
-Pin ↔ physical position hard-coded for J4M6:
-
-| Pin | Net |
-|-----|-----|
-| 1 | PD6 (USART1_TX default) |
-| 2 | GND |
-| 3 | PA2 |
-| 4 | VCC |
-| 5 | PC1 (I2C1_SDA default) |
-| 6 | PC2 (I2C1_SCL default) |
-| 7 | PC4 (ADC IN2) |
-| 8 | PD4 (SWIO — debug) |
-
-## Phases
-
-1. **Scaffold + chip SVG** — playground.vue route, ChipDiagram with 8-pin SVG, no logic.
-2. **Register state + peripherals** — bus.ts, rcc.ts, gpio.ts; unit tests for ready-bit handshake, BSHR/BCR semantics, CFGLR mode resolution.
-3. **Parser** — DSL → AST with line tracking; unit tests cover all bitwise patterns used in L00–L05.
-4. **Interpreter** — step()/run(); error reporting in Arabic with line numbers.
-5. **UI wiring** — CodeMirror + register panel + chip diagram reactive to step diff; highlight current line.
-6. **Presets** — load each lesson's example code as a one-click preset.
-7. **i18n + RTL polish + dark/light** — Arabic strings, RTL layout for the code editor pane.
-
-Estimate: ~2–3 weeks single-developer focused. Each phase is independent and committable.
-
-## Decisions still open
-
-- Editor: CodeMirror 6 (richer) vs plain `<textarea>` with line numbers (lighter). Lean CodeMirror.
-- Run speed when not stepping: 1 stmt/200 ms default? Adjustable?
-
-## Non-goals (explicitly)
-
-- Cycle accuracy or real-time delays.
-- Compiling real C — out of scope; if needed later, separate `feat/wasm-sim` branch.
-- Writing a flashable binary back to the chip.
-- Multi-chip / multi-MCU support.
-- Virtual LEDs / buttons / external components wired to pins. The chip diagram is read-only and only displays the pin's logical status (HIGH/LOW/INPUT/AF/ADC/HI-Z).
+## Style decisions
+- Lesson titles: conversational Arabic (e.g. "تعمّق في UART", not literal "UART العميق")
+- Arabic comments in code preserved when editing nearby lines
+- Donation framing: "اشترِ لي كوب قهوة" not "إكرامية"

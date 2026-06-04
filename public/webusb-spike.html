@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>WCH-LinkE WebUSB spike</title>
+  <style>
+    body { font-family: ui-monospace, Menlo, monospace; max-width: 860px; margin: 2rem auto; padding: 1rem;
+           background: #0d0d0d; color: #d8d8d8; line-height: 1.5; }
+    h1 { font-size: 1.1rem; color: #fff; border-bottom: 1px solid #333; padding-bottom: .5rem; }
+    .warn { background: #2a1a00; border-left: 3px solid #f0a500; padding: .5rem .8rem; margin: 1rem 0; color: #f0c060; }
+    .row  { display: flex; gap: .5rem; margin: .8rem 0; flex-wrap: wrap; }
+    button { padding: 10px 18px; font: inherit; background: #1a4a1a; color: #afe; border: 1px solid #4a8;
+             border-radius: 3px; cursor: pointer; }
+    button:hover { background: #2a6a2a; }
+    button.alt { background: #4a2a1a; color: #fea; border-color: #a84; }
+    button.alt:hover { background: #6a3a2a; }
+    button.read { background: #1a2a4a; color: #aef; border-color: #48a; }
+    button.read:hover { background: #2a3a6a; }
+    pre { background: #161616; padding: 1rem; border: 1px solid #2a2a2a; border-radius: 3px;
+          overflow-x: auto; min-height: 340px; white-space: pre-wrap; word-break: break-all; }
+    .ok   { color: #5f5; }
+    .err  { color: #f55; }
+    .info { color: #5af; }
+    .step { color: #fa5; font-weight: bold; }
+    .dim  { color: #888; }
+  </style>
+</head>
+<body>
+  <h1>WCH-LinkE WebUSB spike</h1>
+  <p class="dim">Three flows: identify the LinkE + chip, read live MMIO from the running target via the
+  RISC-V debug interface, and resume the chip after a halt.</p>
+  <div class="warn">
+    All flows halt the target briefly. Each one calls "resume" at the end, but if anything errors out,
+    click "Resume target only" to recover without power-cycling.
+  </div>
+  <div class="row">
+    <button id="full">Full identify (1–5)</button>
+    <button id="readmmio" class="read">Read live MMIO (debug primitive)</button>
+    <button id="writemmio" class="read">Write + read-back (RAM &amp; GPIO)</button>
+    <button id="resume" class="alt">Resume target (DMCONTROL)</button>
+    <button id="reboot" class="alt">Reboot target (NDMRESET)</button>
+  </div>
+  <pre id="log"><span class="dim">[ waiting ]</span></pre>
+
+  <script>
+  // ─── log helpers ─────────────────────────────────────────────────
+  const log = document.getElementById('log')
+  function append(msg, cls = '') {
+    if (log.firstChild && log.firstChild.classList?.contains('dim')) log.textContent = ''
+    const span = document.createElement('span')
+    span.className = cls
+    span.textContent = msg + '\n'
+    log.appendChild(span)
+  }
+  const hex = (b) => Array.from(b).map(x => x.toString(16).padStart(2,'0')).join(' ')
+  const h32 = (n) => '0x' + (n >>> 0).toString(16).padStart(8, '0')
+
+  // ─── USB plumbing ────────────────────────────────────────────────
+  async function getDevice() {
+    if (!navigator.usb) throw new Error('WebUSB not available — use Chrome / Edge / Brave')
+    const device = await navigator.usb.requestDevice({ filters: [{ vendorId: 0x1A86 }] })
+    await device.open()
+    if (device.configuration === null) await device.selectConfiguration(1)
+    await device.claimInterface(0)
+    return device
+  }
+  async function release(device) {
+    if (device?.opened) {
+      try { await device.releaseInterface(0) } catch {}
+      try { await device.close() } catch {}
+    }
+  }
+  async function cmd(device, bytes, replyMax = 64, readReply = true) {
+    const out = await device.transferOut(1, new Uint8Array(bytes))
+    if (out.status !== 'ok') throw new Error(`OUT failed: ${out.status}`)
+    if (!readReply) return null
+    const inR = await device.transferIn(1, replyMax)
+    if (inR.status !== 'ok') throw new Error(`IN failed: ${inR.status}`)
+    return new Uint8Array(inR.data.buffer)
+  }
+
+  // ─── RISC-V debug-register primitives (tunneled via 81 08 06) ────
+  // Op codes: 1 = read, 2 = write
+  async function dmiWrite(device, reg7, value32) {
+    const v = value32 >>> 0
+    const req = [0x81, 0x08, 0x06, reg7 & 0x7f,
+                 (v >>> 24) & 0xff, (v >>> 16) & 0xff,
+                 (v >>>  8) & 0xff,  v        & 0xff,
+                 0x02]
+    const r = await cmd(device, req, 64)
+    if (r.length < 9 || r[3] !== reg7) throw new Error(`dmiWrite reg=${reg7}: bad reply ${hex(r)}`)
+  }
+  async function dmiRead(device, reg7) {
+    const req = [0x81, 0x08, 0x06, reg7 & 0x7f, 0, 0, 0, 0, 0x01]
+    const r = await cmd(device, req, 64)
+    if (r.length < 8 || r[3] !== reg7) throw new Error(`dmiRead reg=${reg7}: bad reply ${hex(r)}`)
+    return ((r[4]<<24) | (r[5]<<16) | (r[6]<<8) | r[7]) >>> 0
+  }
+
+  // Debug-register addresses (RISC-V debug spec + WCH extensions)
+  const DMDATA0=0x04, DMDATA1=0x05, DMCONTROL=0x10, DMSTATUS=0x11, DMHARTINFO=0x12
+  const DMABSTRACTCS=0x16, DMCOMMAND=0x17, DMABSTRACTAUTO=0x18
+  const DMPROGBUF0=0x20, DMPROGBUF1=0x21, DMPROGBUF2=0x22
+  const DMCFGR=0x7D, DMSHDWCFGR=0x7E   // WCH config + shadow-config (need magic-key 0x5aa50000)
+
+  // Poll DMABSTRACTCS until busy=0. Throw on cmderr or timeout.
+  async function waitDone(device, timeoutMs = 200) {
+    const t0 = performance.now()
+    while (true) {
+      const v = await dmiRead(device, DMABSTRACTCS)
+      const busy   = (v >> 12) & 1
+      const cmderr = (v >>  8) & 7
+      if (!busy) {
+        if (cmderr) throw new Error(`abstract cmderr=${cmderr} (clear with abstractcs.cmderr=7)`)
+        return
+      }
+      if (performance.now() - t0 > timeoutMs) throw new Error('waitDone timeout')
+      await new Promise(r => setTimeout(r, 1))
+    }
+  }
+
+  // One-time setup: program-buffer that reads `*x11` into x9 and stores to `*x10` (DATA0).
+  async function setupReadProgBuf(device) {
+    await dmiWrite(device, DMABSTRACTAUTO, 0)
+    await dmiWrite(device, DMPROGBUF0, 0x40044180) // c.lw x8,0(x11) ; c.lw x9,0(x8)
+    await dmiWrite(device, DMPROGBUF1, 0xc1040001) // c.nop          ; c.sw x9,0(x10)
+    await dmiWrite(device, DMPROGBUF2, 0x9002c180) // c.sw x8,0(x11) ; c.ebreak
+
+    // Initialise x10 = &DATA0, x11 = &DATA1 (from RM: DM scratch memory base in HARTINFO).
+    const hartinfo = await dmiRead(device, DMHARTINFO)
+    const data0addr = (0xe0000000 | (hartinfo & 0x7ff)) >>> 0
+    await dmiWrite(device, DMDATA0, data0addr)
+    await dmiWrite(device, DMCOMMAND, 0x0023100a) // write x10 (a0) = DATA0 from DATA0
+    await dmiWrite(device, DMDATA0, (data0addr + 4) >>> 0)
+    await dmiWrite(device, DMCOMMAND, 0x0023100b) // write x11 (a1) = DATA1 from DATA0
+    await waitDone(device)
+
+    await dmiWrite(device, DMABSTRACTAUTO, 1)     // re-arm autoexec for subsequent reads
+  }
+
+  // Read 32-bit MMIO at `address` from the target.
+  async function readMmio(device, address) {
+    await dmiWrite(device, DMDATA1, address >>> 0)
+    await dmiWrite(device, DMCOMMAND, 0x00241000) // execute progbuf (no transfer, postexec=1)
+    await waitDone(device)
+    return await dmiRead(device, DMDATA0)
+  }
+
+  // Write-mode setup: program-buffer that stores x8 into *x9 (where x9 = DATA1's stored addr).
+  // Autoexec is disabled here — every write explicitly triggers via DMCOMMAND.
+  async function setupWriteProgBuf(device) {
+    await dmiWrite(device, DMABSTRACTAUTO, 0)
+    await dmiWrite(device, DMPROGBUF0, 0xc0804184) // c.lw x9,0(x11) ; c.sw x8,0(x9)
+    await dmiWrite(device, DMPROGBUF1, 0xc1840491) // c.addi x9, 4   ; c.sw x9,0(x11)
+    await dmiWrite(device, DMPROGBUF2, 0x00019002) // c.ebreak       ; (filler nop)
+
+    // Make sure x10/x11 still point at &DATA0/&DATA1 (idempotent if read-setup ran first).
+    const hartinfo = await dmiRead(device, DMHARTINFO)
+    const data0addr = (0xe0000000 | (hartinfo & 0x7ff)) >>> 0
+    await dmiWrite(device, DMDATA0, data0addr)
+    await dmiWrite(device, DMCOMMAND, 0x0023100a) // x10 = data0addr
+    await dmiWrite(device, DMDATA0, (data0addr + 4) >>> 0)
+    await dmiWrite(device, DMCOMMAND, 0x0023100b) // x11 = data0addr + 4
+    await waitDone(device)
+  }
+
+  // Write 32-bit `value` to MMIO `address` on the target.
+  async function writeMmio(device, address, value) {
+    await dmiWrite(device, DMDATA1, address >>> 0)
+    await dmiWrite(device, DMDATA0, value >>> 0)
+    // DMCOMMAND 0x00271008: write DATA0 → x8, postexec=1 (runs progbuf which stores x8 → *DATA1).
+    await dmiWrite(device, DMCOMMAND, 0x00271008)
+    await waitDone(device)
+  }
+
+  // ─── linke-level identify (re-used by both buttons) ──────────────
+  async function linkeIdentify(device) {
+    let r = await cmd(device, [0x81, 0x0D, 0x01, 0x01])
+    if (r[0] !== 0x82 || r[1] !== 0x0D) throw new Error(`identify programmer: ${hex(r)}`)
+    r = await cmd(device, [0x81, 0x0D, 0x01, 0x02])
+    if (r[0] === 0x81 && r[1] === 0x55) throw new Error('nothing connected to LinkE')
+  }
+  // Simple LinkE close — works only when the debug interface hasn't been deeply touched.
+  async function resume(device) {
+    await cmd(device, [0x81, 0x0D, 0x01, 0xFF], 0, false)
+  }
+
+  // Proper RISC-V resume after we've poked PROGBUF/DMCONTROL. From minichlink's
+  // HALT_MODE_RESUME. The CFGR sequence is a WCH-specific "song and dance"; the
+  // resumereq+dmactive write at the end is the standard debug-spec call.
+  async function properResume(device) {
+    const KEY = 0x5aa50000 | (1 << 10)   // magic key + "Allow output from slave"
+    await dmiWrite(device, DMSHDWCFGR, KEY)
+    await dmiWrite(device, DMCFGR,     KEY)
+    await dmiWrite(device, DMCFGR,     KEY)
+    await dmiWrite(device, DMCFGR,     KEY)
+    await dmiWrite(device, DMCONTROL,  0x40000001) // resumereq + dmactive
+    await cmd(device, [0x81, 0x0D, 0x01, 0xFF], 0, false) // close LinkE session
+  }
+
+  // Full reboot — re-runs the firmware from the reset vector. Safer after we've
+  // clobbered CPU regs (x8–x11) and PROGBUF. From minichlink's HALT_MODE_REBOOT.
+  async function reboot(device) {
+    await dmiWrite(device, DMCONTROL, 0x80000001) // halt + dmactive
+    await dmiWrite(device, DMCONTROL, 0x80000001) // again, per minichlink comment
+    await dmiWrite(device, DMCONTROL, 0x80000003) // ndmreset + halt + dmactive
+    await dmiWrite(device, DMCONTROL, 0x40000001) // resumereq + dmactive
+    await cmd(device, [0x81, 0x0D, 0x01, 0xFF], 0, false)
+  }
+
+  // ─── button: Full identify ───────────────────────────────────────
+  document.getElementById('full').addEventListener('click', async () => {
+    log.textContent = ''
+    let device = null
+    try {
+      device = await getDevice()
+      append(`Connected: ${device.manufacturerName} / ${device.productName}`, 'ok')
+
+      append('\n[1] Identify programmer  (81 0d 01 01)', 'step')
+      let r = await cmd(device, [0x81, 0x0D, 0x01, 0x01])
+      append(`    raw: ${hex(r)}`, 'ok')
+      if (r[0] === 0x82) {
+        const name = ({1:'CH549',2:'CH32V307',3:'CH32V203',4:'LinkB',18:'LinkE'})[r[5]] ?? '?'
+        append(`    → ${name} v${r[3]}.${r[4]}`, 'ok')
+      }
+
+      append('\n[2] Detect chip series  (81 0d 01 02)', 'step')
+      r = await cmd(device, [0x81, 0x0D, 0x01, 0x02])
+      append(`    raw: ${hex(r)}`, 'ok')
+      const chipType = (r[4] << 4) + (r[5] >> 4)
+      append(`    → chip type = 0x${chipType.toString(16).padStart(3,'0')}`, 'ok')
+
+      append('\n[3] Read chip info  (81 11 01 05)', 'step')
+      r = await cmd(device, [0x81, 0x11, 0x01, 0x05], 64)
+      append(`    raw: ${hex(r)}`, 'ok')
+      append(`    → Flash: ${(r[2]<<8)|r[3]} kB,  UUID: ${hex(r.slice(4,12))}`, 'ok')
+
+      append('\n[4] Check read protection  (81 06 01 01)', 'step')
+      r = await cmd(device, [0x81, 0x06, 0x01, 0x01])
+      append(`    raw: ${hex(r)}`, 'ok')
+      append(`    → ${r[3] === 1 ? 'ENABLED' : 'disabled'}`, 'ok')
+
+      append('\n[5] Resume target  (81 0d 01 ff)', 'step')
+      await resume(device)
+      append('    → resumed', 'ok')
+      append('\n[✓] Done', 'ok')
+    } catch (e) {
+      append(`\n[!] ${e.message}`, 'err')
+      append('    Click "Resume target only" to recover.', 'err')
+    } finally { await release(device) }
+  })
+
+  // ─── button: Read live MMIO ──────────────────────────────────────
+  document.getElementById('readmmio').addEventListener('click', async () => {
+    log.textContent = ''
+    let device = null
+    try {
+      device = await getDevice()
+      append(`Connected: ${device.manufacturerName} / ${device.productName}`, 'ok')
+
+      append('\n[1] Identify (halts target) ...', 'step')
+      await linkeIdentify(device)
+      append('    → halted', 'ok')
+
+      append('\n[2] Set up program-buffer for MMIO reads ...', 'step')
+      await setupReadProgBuf(device)
+      append('    → PROGBUF0..2 + x10/x11 initialised, autoexec on', 'ok')
+
+      // Known MMIO targets. Blink PC1 firmware sets RCC.APB2PCENR bit 4 (IOPCEN).
+      const targets = [
+        { name: 'RCC_APB2PCENR  ', addr: 0x40021018, expect: 'bit 4 (IOPCEN) set' },
+        { name: 'GPIOC_CFGLR    ', addr: 0x40011000, expect: 'PC1 cfg = 0b0011 in [7:4]' },
+        { name: 'GPIOC_OUTDR    ', addr: 0x4001100C, expect: 'PC1 = halt-time level' },
+        { name: 'R32_ESIG_UNIID1', addr: 0x1FFFF7E8, expect: 'matches identify UUID[0..3]' },
+        { name: 'R32_ESIG_UNIID2', addr: 0x1FFFF7EC, expect: 'matches identify UUID[4..7]' },
+      ]
+
+      append('\n[3] Reading live MMIO via debug abstract command ...', 'step')
+      for (const t of targets) {
+        const v = await readMmio(device, t.addr)
+        append(`    ${t.name}  @${h32(t.addr)}  =  ${h32(v)}    ${t.expect}`, 'ok')
+      }
+
+      append('\n[4] Resuming target (DMCONTROL.resumereq) ...', 'step')
+      await properResume(device)
+      append('    → resumed', 'ok')
+      append('\n[✓] Live MMIO read via WebUSB → LinkE → RISC-V debug ABS-CMD works.', 'ok')
+    } catch (e) {
+      append(`\n[!] ${e.message}`, 'err')
+      append('    Click "Resume target only" to recover.', 'err')
+      console.error(e)
+    } finally { await release(device) }
+  })
+
+  // ─── button: Write + read-back ───────────────────────────────────
+  document.getElementById('writemmio').addEventListener('click', async () => {
+    log.textContent = ''
+    let device = null
+    try {
+      device = await getDevice()
+      append(`Connected: ${device.manufacturerName} / ${device.productName}`, 'ok')
+
+      append('\n[1] Identify (halts target) ...', 'step')
+      await linkeIdentify(device)
+      append('    → halted', 'ok')
+
+      append('\n[2] Set up WRITE program-buffer ...', 'step')
+      await setupWriteProgBuf(device)
+      append('    → write progbuf loaded, x10/x11 initialised', 'ok')
+
+      // ── RAM round-trip ──
+      append('\n[3] RAM round-trip @ 0x20000000 ...', 'step')
+      const ramTests = [
+        { addr: 0x20000000, val: 0xDEADBEEF >>> 0 },
+        { addr: 0x20000004, val: 0xCAFEBABE >>> 0 },
+        { addr: 0x20000100, val: 0x12345678 >>> 0 },
+      ]
+      for (const t of ramTests) {
+        await writeMmio(device, t.addr, t.val)
+        append(`    wrote ${h32(t.val)} → ${h32(t.addr)}`, 'ok')
+      }
+
+      // Toggle PC1 visibly via BSHR/BCR (atomic GPIO ops, no read-modify-write).
+      append('\n[4] Flipping PC1 via GPIOC_BSHR / GPIOC_BCR ...', 'step')
+      const GPIOC_BSHR = 0x40011010
+      const GPIOC_BCR  = 0x40011014
+      await writeMmio(device, GPIOC_BSHR, 1 << 1)   // PC1 HIGH
+      append('    wrote 0x00000002 → GPIOC_BSHR (PC1 HIGH)', 'ok')
+      await writeMmio(device, GPIOC_BCR,  1 << 1)   // PC1 LOW
+      append('    wrote 0x00000002 → GPIOC_BCR  (PC1 LOW)', 'ok')
+
+      // ── Read back RAM (need read-mode progbuf now) ──
+      append('\n[5] Switching to READ progbuf to verify RAM ...', 'step')
+      await setupReadProgBuf(device)
+      append('    → read progbuf loaded, autoexec on', 'ok')
+
+      append('\n[6] Reading back RAM values ...', 'step')
+      let pass = true
+      for (const t of ramTests) {
+        const got = await readMmio(device, t.addr)
+        const ok = got === t.val
+        if (!ok) pass = false
+        append(`    ${h32(t.addr)}  =  ${h32(got)}  ${ok ? '✓' : `✗ expected ${h32(t.val)}`}`, ok ? 'ok' : 'err')
+      }
+
+      append('\n[7] Reading back GPIOC_OUTDR ...', 'step')
+      const outdr = await readMmio(device, 0x4001100C)
+      append(`    GPIOC_OUTDR  =  ${h32(outdr)}  (PC1 bit ${(outdr >> 1) & 1})`, 'ok')
+
+      append('\n[8] Resuming target (DMCONTROL.resumereq) ...', 'step')
+      await properResume(device)
+      append('    → resumed', 'ok')
+
+      if (pass) {
+        append('\n[✓] Write + read-back fully works. The flash flow is unblocked.', 'ok')
+      } else {
+        append('\n[✗] RAM round-trip mismatched — investigate', 'err')
+      }
+    } catch (e) {
+      append(`\n[!] ${e.message}`, 'err')
+      append('    Click "Resume target only" to recover.', 'err')
+      console.error(e)
+    } finally { await release(device) }
+  })
+
+  // ─── button: Resume only (proper DMCONTROL.resumereq) ────────────
+  document.getElementById('resume').addEventListener('click', async () => {
+    log.textContent = ''
+    let device = null
+    try {
+      device = await getDevice()
+      append('Opening LinkE debug session ...', 'info')
+      await linkeIdentify(device)
+      append('Sending DMCFGR magic key + DMCONTROL.resumereq ...', 'info')
+      await properResume(device)
+      append('[✓] Resume sent. If still halted, try "Reboot target".', 'ok')
+    } catch (e) {
+      append(`[!] ${e.message}`, 'err')
+    } finally { await release(device) }
+  })
+
+  // ─── button: Reboot target (NDMRESET — restarts firmware) ────────
+  document.getElementById('reboot').addEventListener('click', async () => {
+    log.textContent = ''
+    let device = null
+    try {
+      device = await getDevice()
+      append('Opening LinkE debug session ...', 'info')
+      await linkeIdentify(device)
+      append('Sending halt + NDMRESET + resumereq ...', 'info')
+      await reboot(device)
+      append('[✓] Reboot sent — firmware restarts from main().', 'ok')
+    } catch (e) {
+      append(`[!] ${e.message}`, 'err')
+    } finally { await release(device) }
+  })
+  </script>
+</body>
+</html>
