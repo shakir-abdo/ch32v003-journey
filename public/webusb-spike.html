@@ -40,6 +40,13 @@
     <button id="resume" class="alt">Resume target (DMCONTROL)</button>
     <button id="reboot" class="alt">Reboot target (NDMRESET)</button>
   </div>
+  <div class="row" style="border-top: 1px solid #333; padding-top: 1rem; margin-top: 1rem;">
+    <label style="display: flex; align-items: center; gap: .5rem; color: #fa5; font-weight: bold;">
+      End-to-end flash test:
+      <input type="file" id="binfile" accept=".bin">
+    </label>
+    <button id="flash" class="read" disabled>Flash selected .bin</button>
+  </div>
   <pre id="log"><span class="dim">[ waiting ]</span></pre>
 
   <script>
@@ -170,6 +177,34 @@
     await dmiWrite(device, DMDATA0, value >>> 0)
     // DMCOMMAND 0x00271008: write DATA0 → x8, postexec=1 (runs progbuf which stores x8 → *DATA1).
     await dmiWrite(device, DMCOMMAND, 0x00271008)
+    await waitDone(device)
+  }
+
+  // Flash-specific write progbuf — same as setupWriteProgBuf but with
+  // PROGBUF2 doing an extra `*FLASH_CTLR = PAGE_PG|BUF_LOAD` after each
+  // data write. This is the BUF_LOAD ack that commits the just-written
+  // word to the flash page buffer. Without it (or with the ack happening
+  // in a separate abstract command), the flash controller drops the
+  // latched word and you end up with all 0xFF in flash.
+  async function setupFlashWriteProgBuf(device) {
+    await dmiWrite(device, DMABSTRACTAUTO, 0)
+    await dmiWrite(device, DMPROGBUF0, 0xc0804184) // c.lw x9,0(x11) ; c.sw x8,0(x9)
+    await dmiWrite(device, DMPROGBUF1, 0xc1840491) // c.addi x9, 4   ; c.sw x9,0(x11)
+    await dmiWrite(device, DMPROGBUF2, 0x9002c214) // c.sw x13,0(x12); c.ebreak
+
+    // x10 = &DATA0, x11 = &DATA1 (autoincrement target address)
+    const hartinfo = await dmiRead(device, DMHARTINFO)
+    const data0addr = (0xe0000000 | (hartinfo & 0x7ff)) >>> 0
+    await dmiWrite(device, DMDATA0, data0addr)
+    await dmiWrite(device, DMCOMMAND, 0x0023100a)
+    await dmiWrite(device, DMDATA0, (data0addr + 4) >>> 0)
+    await dmiWrite(device, DMCOMMAND, 0x0023100b)
+
+    // x12 = FLASH_CTLR address, x13 = PAGE_PG|BUF_LOAD (the ack pattern)
+    await dmiWrite(device, DMDATA0, FLASH_CTLR)
+    await dmiWrite(device, DMCOMMAND, 0x0023100c)
+    await dmiWrite(device, DMDATA0, CR_PAGE_PG | CR_BUF_LOAD)
+    await dmiWrite(device, DMCOMMAND, 0x0023100d)
     await waitDone(device)
   }
 
@@ -376,6 +411,208 @@
       append('[✓] Resume sent. If still halted, try "Reboot target".', 'ok')
     } catch (e) {
       append(`[!] ${e.message}`, 'err')
+    } finally { await release(device) }
+  })
+
+  // ─── flash primitives (CH32V003 Flash Memory Controller) ────────
+  const FLASH_KEYR     = 0x40022004
+  const FLASH_OBKEYR   = 0x40022008
+  const FLASH_STATR    = 0x4002200C
+  const FLASH_CTLR     = 0x40022010
+  const FLASH_ADDR     = 0x40022014
+  const FLASH_MODEKEYR = 0x40022024
+  const KEY1 = 0x45670123, KEY2 = 0xCDEF89AB
+  const CR_PG = 0x01, CR_MER = 0x04, CR_STRT = 0x40, CR_LOCK = 0x80
+  const CR_PAGE_PG = 0x10000, CR_PAGE_ER = 0x20000
+  const CR_BUF_LOAD = 0x40000, CR_BUF_RST = 0x80000
+  const STATR_BSY = 0x01, STATR_WRPRTERR = 0x10, STATR_PGERR = 0x04
+
+  // Poll FLASH_STATR.BSY until clear, throw on error flags. Uses readMmio
+  // so the caller must have set up the READ progbuf before calling.
+  async function waitForFlash(device, timeoutMs = 5000) {
+    const t0 = performance.now()
+    while (true) {
+      const statr = await readMmio(device, FLASH_STATR)
+      if (!(statr & STATR_BSY)) {
+        if (statr & (STATR_PGERR | STATR_WRPRTERR))
+          throw new Error(`flash error: STATR=${h32(statr)}`)
+        return
+      }
+      if (performance.now() - t0 > timeoutMs) throw new Error('flash BSY timeout')
+      await new Promise(r => setTimeout(r, 1))
+    }
+  }
+
+  // Unlock the flash controller. Reads CTLR at the end to confirm bits
+  // 0x80 (LOCK) + 0x8000 (BOOT_LOCK) are cleared. The caller must have
+  // set up the WRITE progbuf before calling; this function swaps to
+  // READ briefly for the verify, then leaves the chip in READ mode.
+  async function flashUnlock(device) {
+    await writeMmio(device, FLASH_KEYR,     KEY1)
+    await writeMmio(device, FLASH_KEYR,     KEY2)
+    await writeMmio(device, FLASH_OBKEYR,   KEY1)
+    await writeMmio(device, FLASH_OBKEYR,   KEY2)
+    await writeMmio(device, FLASH_MODEKEYR, KEY1)
+    await writeMmio(device, FLASH_MODEKEYR, KEY2)
+    await setupReadProgBuf(device)
+    const ctlr = await readMmio(device, FLASH_CTLR)
+    if (ctlr & 0x8080) throw new Error(`flash unlock failed: CTLR=${h32(ctlr)}`)
+  }
+
+  // Mass-erase the entire 16 KB flash. Assumes flash is unlocked.
+  // Leaves the chip in READ progbuf mode after the BSY wait.
+  async function flashMassErase(device) {
+    await setupWriteProgBuf(device)
+    await writeMmio(device, FLASH_CTLR, 0)                    // clear stale state
+    await writeMmio(device, FLASH_CTLR, CR_MER)               // request mass erase
+    await writeMmio(device, FLASH_CTLR, CR_MER | CR_STRT)     // start
+    await setupReadProgBuf(device)
+    await waitForFlash(device, 10000)                          // mass erase can take ~1s
+  }
+
+  // Program a single 64-byte page. `pageBytes` must be exactly 64 bytes.
+  // CH32V003 "fast page programming" sequence:
+  //   1. CTLR = PAGE_PG, CTLR = PAGE_PG|BUF_RST  (regular write progbuf)
+  //   2. 16 × writeMmio at pageAddr+j*4         (flash-write progbuf —
+  //      each call atomically writes the word AND triggers BUF_LOAD)
+  //   3. FLASH_ADDR = pageAddr, CTLR = PAGE_PG|STRT  (regular write progbuf)
+  //   4. Poll BSY                                (read progbuf)
+  //
+  // CRITICAL: writes to flash (data loads + FLASH_ADDR) must use the
+  // 0x08000000 alias. Writing to 0x00000000-mapped flash addresses
+  // bypasses the flash controller and silently fails — the chip treats
+  // 0x00000000 as ROM region for the CPU but only the 0x08000000 alias
+  // is recognised by the flash programming logic.
+  async function flashProgramPage(device, pageAddr, pageBytes) {
+    const flashAddr = (pageAddr | 0x08000000) >>> 0
+
+    // Phase 1: enter PAGE_PG mode, reset the page buffer.
+    await setupWriteProgBuf(device)
+    await writeMmio(device, FLASH_CTLR, CR_PAGE_PG)
+    await writeMmio(device, FLASH_CTLR, CR_PAGE_PG | CR_BUF_RST)
+
+    // Phase 2: switch to flash-write progbuf so every word write is
+    // immediately followed by the BUF_LOAD ack within the same chip-side
+    // abstract command. Without this atomicity the flash controller
+    // drops the latched word and the page stays at 0xFF.
+    await setupFlashWriteProgBuf(device)
+    for (let j = 0; j < 16; j++) {
+      const word = (pageBytes[j*4]      ) |
+                   (pageBytes[j*4 + 1] << 8) |
+                   (pageBytes[j*4 + 2] << 16) |
+                   (pageBytes[j*4 + 3] << 24)
+      await writeMmio(device, flashAddr + j * 4, word >>> 0)
+    }
+
+    // Phase 3: back to regular write progbuf so the FLASH_ADDR + STRT
+    // writes don't get a BUF_LOAD ack appended (which would clobber them).
+    await setupWriteProgBuf(device)
+    await writeMmio(device, FLASH_ADDR, flashAddr)
+    await writeMmio(device, FLASH_CTLR, CR_PAGE_PG | CR_STRT)
+
+    // Phase 4: poll BSY using read progbuf.
+    await setupReadProgBuf(device)
+    await waitForFlash(device, 1000)
+  }
+
+  // Read `len` bytes from flash starting at `addr` and return as Uint8Array.
+  // Caller must have setupReadProgBuf'd. Reads in 4-byte chunks.
+  async function flashReadBack(device, addr, len) {
+    const out = new Uint8Array(len + 3 & ~3)
+    for (let i = 0; i < out.length; i += 4) {
+      const v = await readMmio(device, addr + i)
+      out[i    ] =  v        & 0xff
+      out[i + 1] = (v >>>  8) & 0xff
+      out[i + 2] = (v >>> 16) & 0xff
+      out[i + 3] = (v >>> 24) & 0xff
+    }
+    return out.slice(0, len)
+  }
+
+  // ─── button: Flash binary file ──────────────────────────────────
+  let selectedBin = null
+  document.getElementById('binfile').addEventListener('change', async (e) => {
+    const file = e.target.files[0]
+    if (!file) { selectedBin = null; document.getElementById('flash').disabled = true; return }
+    selectedBin = new Uint8Array(await file.arrayBuffer())
+    document.getElementById('flash').disabled = false
+    log.textContent = ''
+    append(`Selected: ${file.name} (${selectedBin.length} bytes, ${Math.ceil(selectedBin.length / 64)} pages)`, 'info')
+  })
+
+  document.getElementById('flash').addEventListener('click', async () => {
+    if (!selectedBin) return
+    log.textContent = ''
+    let device = null
+    try {
+      device = await getDevice()
+      append(`Connected: ${device.manufacturerName} / ${device.productName}`, 'ok')
+
+      append('\n[1] Identify (halts target) ...', 'step')
+      await linkeIdentify(device)
+      append('    → halted', 'ok')
+
+      append('\n[2] Setting up WRITE progbuf ...', 'step')
+      await setupWriteProgBuf(device)
+      append('    → write progbuf loaded', 'ok')
+
+      append('\n[3] Unlocking flash ...', 'step')
+      await flashUnlock(device)
+      append('    → CTLR.LOCK + LOCK_BOOT cleared', 'ok')
+
+      append('\n[4] Mass-erasing flash (16 KB) ...', 'step')
+      const t0 = performance.now()
+      await flashMassErase(device)
+      append(`    → erased in ${Math.round(performance.now() - t0)} ms`, 'ok')
+
+      // Pad the .bin out to a multiple of 64 bytes with 0xFF (erased value).
+      const pageCount = Math.ceil(selectedBin.length / 64)
+      const padded = new Uint8Array(pageCount * 64).fill(0xFF)
+      padded.set(selectedBin)
+
+      append(`\n[5] Programming ${pageCount} pages × 64 bytes = ${pageCount * 64} bytes ...`, 'step')
+      const tProg0 = performance.now()
+      for (let p = 0; p < pageCount; p++) {
+        const pageBytes = padded.slice(p * 64, p * 64 + 64)
+        await flashProgramPage(device, p * 64, pageBytes)
+        if ((p & 3) === 0 || p === pageCount - 1) {
+          append(`    page ${(p + 1).toString().padStart(3)}/${pageCount}  @${h32(p * 64)}`, 'dim')
+        }
+      }
+      append(`    → programmed in ${Math.round(performance.now() - tProg0)} ms`, 'ok')
+
+      append('\n[6] Verifying flash (read-back + compare) ...', 'step')
+      const tVer0 = performance.now()
+      const readBack = await flashReadBack(device, 0, selectedBin.length)
+      let mismatches = 0, firstBad = -1
+      for (let i = 0; i < selectedBin.length; i++) {
+        if (readBack[i] !== selectedBin[i]) {
+          if (firstBad < 0) firstBad = i
+          mismatches++
+        }
+      }
+      if (mismatches === 0) {
+        append(`    ✓ all ${selectedBin.length} bytes match (${Math.round(performance.now() - tVer0)} ms)`, 'ok')
+      } else {
+        append(`    ✗ ${mismatches} bytes differ; first at offset ${h32(firstBad)}`, 'err')
+        const ctx = Math.max(0, firstBad - 4)
+        append(`      expected @${h32(ctx)}: ${hex(selectedBin.slice(ctx, ctx + 16))}`, 'err')
+        append(`      got      @${h32(ctx)}: ${hex(readBack.slice(ctx, ctx + 16))}`, 'err')
+      }
+
+      append('\n[7] Rebooting target (NDMRESET) ...', 'step')
+      await reboot(device)
+      append('    → reboot sent', 'ok')
+
+      if (mismatches === 0) {
+        append(`\n[✓] Flash + verify complete in ${Math.round(performance.now() - t0)} ms total. LED should reflect new firmware.`, 'ok')
+      } else {
+        append(`\n[✗] Flash mismatched — firmware will not run correctly. Total ${Math.round(performance.now() - t0)} ms.`, 'err')
+      }
+    } catch (e) {
+      append(`\n[!] ${e.message}`, 'err')
+      append('    Click "Reboot target" to recover.', 'err')
+      console.error(e)
     } finally { await release(device) }
   })
 

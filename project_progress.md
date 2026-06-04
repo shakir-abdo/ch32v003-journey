@@ -16,18 +16,25 @@
 ## Roadmap — compile + flash from browser (next big bet)
 
 ### Phase 0 — De-risking spikes
-- ✅ **WebUSB ↔ WCH-LinkE feasibility** — `public/webusb-spike.html` proves every primitive needed for flash. Validated on hardware: LinkE v2.14 + CH32V003J4M6. All values byte-perfect vs minichlink.
+- ✅ **WebUSB ↔ WCH-LinkE ↔ CH32V003 FULL FLASH FLOW** — `public/webusb-spike.html` proves the complete pipeline. Validated end-to-end on hardware (LinkE v2.14 + CH32V003J4M6): unlock + mass erase + program 28 pages + verify 1748 bytes byte-perfect, total 2.6 s. After reboot, the new firmware runs and the LED blinks at the rate dictated by the freshly-flashed code.
   - WCH-LinkE VID=0x1A86 PID=0x8010 (WCH-Link mode, NOT CMSIS-DAP)
-  - Interface 0 is Vendor Specific Class (255) → WebUSB-accessible
-  - Bulk EP1 IN/OUT (0x81/0x01), 64-byte packets
-  - LinkE-level commands work: identify (`81 0d 01 01`), chip detect, chip info, read-protect, close (`81 0d 01 ff`)
-  - DMI register tunneling works via `81 08 06 [reg7] [be4] [op]` (op=1 read, op=2 write)
-  - RISC-V abstract command + PROGBUF works (read+write modes, autoexec, x10/x11 setup via DMHARTINFO)
-  - Read live MMIO from target works (RCC, GPIO, UNIID — byte-perfect)
-  - Write live MMIO (RAM round-trip + GPIO toggle) works
-  - **Critical:** `81 0d 01 ff` is NOT a true resume — it just closes LinkE session. After PROGBUF/DMCONTROL writes, must use `DMCONTROL = 0x40000001` (resumereq + dmactive) OR full reboot (`0x80000003` NDMRESET → `0x40000001`).
-  - WCH "song and dance": before resume, write `0x5aa50000 | (1<<10)` to DMSHDWCFGR (0x7E) + DMCFGR (0x7D) ×3.
-  - Standalone resume/reboot buttons must call linkeIdentify first to open the debug session, else LinkE returns stale buffer.
+  - Interface 0 is Vendor Specific Class (255) → WebUSB-accessible; Bulk EP1 IN/OUT, 64-byte packets
+  - LinkE-level commands: identify (`81 0d 01 01`), chip detect, chip info, read-protect, close (`81 0d 01 ff`)
+  - DMI register tunneling via `81 08 06 [reg7] [be4] [op]` (op=1 read, op=2 write); replies are always 9 bytes echoing the reg
+  - RISC-V abstract command + PROGBUF: read mode (autoexec), write mode (one-shot per writeMmio), flash-write mode (atomic write+BUF_LOAD ack)
+  - Read live MMIO works (RCC, GPIO, UNIID, RAM — all byte-perfect)
+  - Write live MMIO works (RAM round-trip + GPIO toggle proven)
+  - Flash unlock: write `0x45670123` + `0xCDEF89AB` to KEYR, OBKEYR, MODEKEYR (3 pairs); check CTLR & 0x8080 cleared
+  - Mass erase: `CTLR = 0; CTLR = MER; CTLR = MER|STRT;` then poll FLASH_STATR.BSY — completes in ~20 ms
+  - Page program (64-byte page): `CTLR = PAGE_PG; CTLR = PAGE_PG|BUF_RST;` then 16 word writes (flash-write progbuf, atomic BUF_LOAD per word) then `FLASH_ADDR = page_base; CTLR = PAGE_PG|STRT;` poll BSY
+
+  **Critical gotchas (would each eat days during a from-scratch port):**
+  - `81 0d 01 ff` is NOT a resume — it only closes the LinkE session. After PROGBUF/DMCONTROL writes, target stays at `c.ebreak` until you write `DMCONTROL = 0x40000001` (resumereq + dmactive). Use `0x80000003` (NDMRESET) → `0x40000001` for a full reboot.
+  - WCH "song and dance" before resume: write `0x5aa50000 | (1<<10)` to DMSHDWCFGR (0x7E) + DMCFGR (0x7D) ×3.
+  - Standalone resume/reboot need linkeIdentify first to open the LinkE debug session — otherwise LinkE returns stale buffer (we saw `82 0d 01 ff` echo instead of a DMI response).
+  - **Flash writes MUST use the 0x08000000 alias.** Writing to flash mapped at 0x00000000 is silently dropped — the chip treats 0x00000000 as ROM for the CPU but only the 0x08000000 alias is intercepted by the flash controller. minichlink remaps with `addr |= 0x08000000` at the top of DefaultWriteBinaryBlob.
+  - **Each flash data write MUST be followed by `FLASH_CTLR = PAGE_PG|BUF_LOAD` *in the same chip-side abstract command*.** Doing it as a separate writeMmio call drops the latched word — the flash controller times out. Solution: dedicated flash-mode PROGBUF with `c.sw x13, 0(x12); c.ebreak` as PROGBUF2 where x12 = FLASH_CTLR (0x40022010) and x13 = PAGE_PG|BUF_LOAD (0x50000), set via `0x0023100c`/`0x0023100d` register-load commands.
+  - Switch progbufs between phases: regular write for CTLR sets, flash-write for the 16 word loads, regular write for FLASH_ADDR + STRT (the trigger writes must NOT have a BUF_LOAD ack appended), read for the BSY poll.
 - ✅ **Backend compile spike** — `spikes/backend-compile/` proves the toolchain pipeline.
   - Native compile (xPack riscv-none-embed-gcc 8.2.0): **0.27s** (cold and warm), output 1748 bytes
   - Docker compile (debian:bookworm-slim + bundled toolchain + framework): **~1.0s** including container startup
