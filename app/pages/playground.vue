@@ -120,6 +120,56 @@ function onShowHelp()  { openTutorial() }
 function onManualWrite(address: number, value: number) {
   manualWrite(address, value)
 }
+
+// ─── Hardware flash (real chip via WebUSB → /api/compile → wch-linke) ──
+const toast = useToast()
+const {
+  flash: flashHardware, flashing: hwFlashing,
+  phase: hwPhase, progress: hwProgress, detail: hwDetail, pages: hwPages,
+  lastError: hwError, lastResult: hwResult, dismiss: hwDismiss
+} = useFlashHardware({
+  onLog: (entry) => consoleEntries.value.push(entry)
+})
+async function onFlash() {
+  const ok = await flashHardware(code.value)
+  if (ok && hwResult.value) {
+    toast.add({
+      title: t('app.sim.ctrl.flashToastSuccess'),
+      description: t('app.sim.ctrl.flashToastSuccessBody', {
+        bytes: hwResult.value.bytes,
+        secs: (hwResult.value.totalMs / 1000).toFixed(2)
+      }),
+      color: 'success',
+      icon: 'i-lucide-check-circle-2',
+      duration: 6000
+    })
+  } else if (!ok && hwError.value) {
+    toast.add({
+      title: t('app.sim.ctrl.flashToastError'),
+      description: hwError.value.split('\n')[0],
+      color: 'error',
+      icon: 'i-lucide-x-circle',
+      duration: 10000
+    })
+  }
+}
+
+// Map phase → cyber palette token + icon + label key
+const phaseStyle = computed(() => {
+  switch (hwPhase.value) {
+    case 'done':  return {color: 'var(--cy-success)',     icon: 'i-lucide-check-circle-2', label: 'app.sim.ctrl.phaseDone',       spin: false}
+    case 'error': return {color: 'var(--cy-destructive)', icon: 'i-lucide-alert-triangle', label: 'app.sim.ctrl.phaseError',      spin: false}
+    case 'compiling':  return {color: 'var(--cy-track-pro, #B14AED)', icon: 'i-lucide-hammer',         label: 'app.sim.ctrl.phaseCompiling',  spin: false}
+    case 'connecting': return {color: 'var(--cy-primary)',  icon: 'i-lucide-plug-zap',     label: 'app.sim.ctrl.phaseConnecting', spin: true}
+    case 'identify':   return {color: 'var(--cy-primary)',  icon: 'i-lucide-fingerprint',  label: 'app.sim.ctrl.phaseIdentify',   spin: false}
+    case 'unlock':     return {color: 'var(--cy-primary)',  icon: 'i-lucide-unlock',       label: 'app.sim.ctrl.phaseUnlock',     spin: false}
+    case 'erase':      return {color: 'var(--cy-warning)',  icon: 'i-lucide-eraser',       label: 'app.sim.ctrl.phaseErase',      spin: true}
+    case 'program':    return {color: 'var(--cy-warning)',  icon: 'i-lucide-cpu',          label: 'app.sim.ctrl.phaseProgram',    spin: true}
+    case 'verify':     return {color: 'var(--cy-primary)',  icon: 'i-lucide-shield-check', label: 'app.sim.ctrl.phaseVerify',     spin: true}
+    case 'reboot':     return {color: 'var(--cy-success)',  icon: 'i-lucide-refresh-cw',   label: 'app.sim.ctrl.phaseReboot',     spin: true}
+    default:           return {color: 'var(--cy-fg-muted)', icon: 'i-lucide-zap',          label: 'app.sim.ctrl.phaseIdle',       spin: false}
+  }
+})
 </script>
 
 <template>
@@ -159,6 +209,26 @@ function onManualWrite(address: number, value: number) {
         <SimPresetMenu @load="loadPreset" />
       </div>
       <div class="cy-panel px-3 py-2 inline-flex items-center gap-2" :dir="isRtl ? 'rtl' : 'ltr'">
+        <button
+          type="button"
+          :disabled="hwFlashing"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 border rounded-[2px] font-mono text-[10px] uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          :style="{
+            color: 'var(--cy-success)',
+            borderColor: 'color-mix(in srgb, var(--cy-success) 55%, transparent)',
+            background: 'color-mix(in srgb, var(--cy-success) 14%, transparent)',
+            boxShadow: hwFlashing ? 'none' : '0 0 8px color-mix(in srgb, var(--cy-success) 25%, transparent)'
+          }"
+          :title="t('app.sim.ctrl.flashTitle')"
+          @click="onFlash"
+        >
+          <UIcon
+            :name="hwFlashing ? 'i-lucide-loader-circle' : 'i-lucide-zap'"
+            class="size-3"
+            :class="hwFlashing ? 'animate-spin' : ''"
+          />
+          {{ hwFlashing ? t('app.sim.ctrl.flashing') : t('app.sim.ctrl.flash') }}
+        </button>
         <button
           type="button"
           :disabled="!hasUnsavedEdits"
@@ -206,6 +276,92 @@ function onManualWrite(address: number, value: number) {
         @compile="onCompile"
       />
     </div>
+
+    <!-- Hardware flash status — visible while phase != idle, fades after success/error -->
+    <Transition
+      enter-active-class="transition-all duration-300 ease-out"
+      enter-from-class="opacity-0 -translate-y-2"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition-all duration-300 ease-in"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 -translate-y-2"
+    >
+      <div
+        v-if="hwPhase !== 'idle'"
+        class="cy-panel mb-4 px-4 py-3 border-l-[3px]"
+        :style="{
+          borderLeftColor: phaseStyle.color,
+          background: `color-mix(in srgb, ${phaseStyle.color} 6%, var(--cy-card))`
+        }"
+        :dir="isRtl ? 'rtl' : 'ltr'"
+      >
+        <div class="flex items-center gap-3 mb-2 flex-wrap" dir="ltr">
+          <div
+            class="inline-flex items-center justify-center size-7 rounded-[2px]"
+            :style="{
+              color: phaseStyle.color,
+              background: `color-mix(in srgb, ${phaseStyle.color} 18%, transparent)`,
+              borderInline: `1px solid color-mix(in srgb, ${phaseStyle.color} 35%, transparent)`
+            }"
+          >
+            <UIcon
+              :name="phaseStyle.icon"
+              class="size-4"
+              :class="phaseStyle.spin ? 'animate-spin' : ''"
+            />
+          </div>
+          <div class="flex-1 min-w-0">
+            <div
+              class="font-mono text-[11px] uppercase tracking-wider font-bold"
+              :style="{color: phaseStyle.color}"
+            >
+              {{ t(phaseStyle.label) }}
+              <span
+                v-if="hwPages && (hwPhase === 'program' || hwPhase === 'erase')"
+                class="text-[var(--cy-fg-muted)] font-normal"
+              >
+                &middot; {{ hwPages.current }}/{{ hwPages.total }}
+              </span>
+            </div>
+            <div
+              v-if="hwDetail"
+              class="font-mono text-[11px] text-[var(--cy-fg-muted)] mt-0.5 truncate"
+            >
+              {{ hwDetail }}
+            </div>
+          </div>
+          <div class="font-mono text-[11px] text-[var(--cy-fg-muted)] tabular-nums" dir="ltr">
+            {{ hwProgress }}%
+          </div>
+          <button
+            v-if="hwPhase === 'done' || hwPhase === 'error'"
+            type="button"
+            class="inline-flex items-center justify-center size-6 rounded-[2px] border border-[var(--cy-border)] text-[var(--cy-fg-muted)] hover:text-[var(--cy-fg)] hover:border-[var(--cy-border-strong)] transition-colors"
+            :title="t('app.sim.ctrl.flashDismiss')"
+            @click="hwDismiss"
+          >
+            <UIcon name="i-lucide-x" class="size-3" />
+          </button>
+        </div>
+
+        <!-- Progress rail -->
+        <div
+          class="h-1.5 rounded-[1px] overflow-hidden"
+          :style="{
+            background: 'color-mix(in srgb, var(--cy-fg-muted) 12%, transparent)'
+          }"
+        >
+          <div
+            class="h-full transition-[width] duration-300 ease-out"
+            :style="{
+              width: hwProgress + '%',
+              background: phaseStyle.color,
+              boxShadow: hwPhase !== 'error' ? `0 0 8px color-mix(in srgb, ${phaseStyle.color} 60%, transparent)` : 'none'
+            }"
+          />
+        </div>
+      </div>
+    </Transition>
 
     <!-- Row 1: Registers (full width, internal 4-col grid) -->
     <div class="mb-4">
