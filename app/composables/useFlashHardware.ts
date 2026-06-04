@@ -71,10 +71,10 @@ export function useFlashHardware(opts: UseFlashHardwareOptions) {
   function applyEvent(e: FlashEvent): void {
     switch (e.phase) {
       case 'connect':
-        phase.value = 'connecting'
-        detail.value = `${e.manufacturer ?? '?'} / ${e.product ?? '?'}`
-        progress.value = 10
-        log('info', `connected: ${detail.value}`)
+        // useFlashHardware acquires the device itself before flashChip()
+        // is called, so we're already past 'connecting' by the time this
+        // fires. Just log the device info — don't bounce the phase back.
+        log('info', `device: ${e.manufacturer ?? '?'} / ${e.product ?? '?'}`)
         break
       case 'identify':
         phase.value = 'identify'
@@ -184,20 +184,29 @@ export function useFlashHardware(opts: UseFlashHardwareOptions) {
     if (flashing.value) return false
     flashing.value  = true
     resetState()
-    phase.value     = 'compiling'
-    progress.value  = 3
-    detail.value    = ''
     try {
+      // 1. Acquire the programmer FIRST. requestDevice() needs an active
+      //    user gesture (Chrome's transient activation), and asking for
+      //    it before any awaits keeps the click context fresh. Bailing
+      //    here also avoids burning a server compile + reCAPTCHA token
+      //    if the user has no WCH-LinkE connected.
+      phase.value    = 'connecting'
+      progress.value = 5
+      log('info', 'requesting WCH-LinkE … (allow the device in the prompt)')
+      const device = await requestDevice()
+      detail.value = `${device.manufacturerName ?? '?'} / ${device.productName ?? '?'}`
+      log('info', `connected: ${detail.value}`)
+
+      // 2. Compile only now that we know we can flash.
+      phase.value    = 'compiling'
+      progress.value = 8
       log('info', 'compiling …')
       const tCompile = performance.now()
       const bin = await compileSource(source)
       detail.value = `${bin.length} bytes`
-      progress.value = 7
+      progress.value = 12
       log('info', `compiled (${bin.length} bytes, ${Math.round(performance.now() - tCompile)} ms)`)
 
-      phase.value = 'connecting'
-      log('info', 'requesting WCH-LinkE … (allow the device in the prompt)')
-      const device = await requestDevice()
       try {
         const result = await flashChip(device, bin, applyEvent)
         lastResult.value = result
