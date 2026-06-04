@@ -38,8 +38,10 @@ services:
       - '3000:3000'
     environment:
       # /api/compile proxies to this URL. Service name resolves via the
-      # default compose network.
+      # `internal` network declared at the bottom.
       COMPILER_URL: http://compiler:3001
+    networks:
+      - internal
     depends_on:
       compiler:
         condition: service_healthy
@@ -65,6 +67,8 @@ services:
       MAX_BODY: '262144'           # 256 KB input cap
       COMPILE_TIMEOUT_MS: '5000'
       MAX_CONCURRENT: '4'
+    networks:
+      - internal
     # Resource caps — defence in depth for untrusted user-supplied C.
     mem_limit: 512m
     cpus: 1.0
@@ -86,3 +90,10 @@ services:
       timeout: 3s
       start_period: 5s
       retries: 3
+
+# Explicit project-internal network so app ↔ compiler DNS resolves on
+# Dokploy (which otherwise reroutes services onto its Traefik network
+# and breaks the default compose-level DNS resolution between services).
+networks:
+  internal:
+    driver: bridge
